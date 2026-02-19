@@ -15,6 +15,7 @@ import {
   type Token,
   type InsertToken,
 } from "@shared/schema";
+import { accounts, users, type Account, type User } from "@shared/models/auth";
 
 function generateSecret(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -78,6 +79,10 @@ export interface IStorage {
   getTokensByApp(appId: string): Promise<Token[]>;
   createTokens(appId: string, count: number): Promise<Token[]>;
   deleteToken(id: string): Promise<void>;
+
+  getAccountByUsername(username: string): Promise<Account | undefined>;
+  getAccountByUserId(userId: string): Promise<Account | undefined>;
+  createAccount(username: string, passwordHash: string, userId: string): Promise<Account>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +281,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteToken(id: string): Promise<void> {
     await db.delete(tokens).where(eq(tokens.id, id));
+  }
+
+  async getAccountByUsername(username: string): Promise<Account | undefined> {
+    const [account] = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.username, username));
+    return account;
+  }
+
+  async getAccountByUserId(userId: string): Promise<Account | undefined> {
+    const [account] = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.userId, userId));
+    return account;
+  }
+
+  async createAccount(username: string, passwordHash: string, userId: string): Promise<Account> {
+    const [account] = await db
+      .insert(accounts)
+      .values({ username, passwordHash, userId })
+      .returning();
+    return account;
   }
 }
 

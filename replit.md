@@ -7,13 +7,13 @@ A KeyAuth-style software licensing and authentication management platform. Users
 - **Frontend**: React + Vite + Tailwind CSS + shadcn/ui components
 - **Backend**: Express.js with TypeScript
 - **Database**: PostgreSQL with Drizzle ORM
-- **Auth**: Replit Auth (OpenID Connect)
+- **Auth**: Dual auth - Replit Auth (OIDC) + Local username/password auth (bcrypt + cookie sessions)
 - **Routing**: wouter (client-side)
 
 ## Project Structure
 ```
 client/src/
-  pages/         - Landing, Dashboard, ManageApps, Licenses, AppUsers, Tokens, AppSettings, Statistics
+  pages/         - Landing, Login, Register, Dashboard, ManageApps, Licenses, AppUsers, Tokens, AppSettings, Statistics
   components/    - AppSidebar, ThemeProvider, ThemeToggle, ui/ (shadcn)
   hooks/         - use-auth, use-toast, use-mobile
   lib/           - queryClient, utils, auth-utils
@@ -27,7 +27,7 @@ server/
 
 shared/
   schema.ts      - Drizzle schemas (applications, licenses, appUsers, tokens)
-  models/auth.ts - User and session schemas
+  models/auth.ts - User, session, and account schemas
 ```
 
 ## Key Data Models
@@ -71,6 +71,7 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 - Branded logo with purple icon badge
 
 ## Recent Changes
+- 2026-02-19: Added local username/password auth with login/register pages, license key required for registration
 - 2026-02-19: Design overhaul - purple accent theme, animations, improved sidebar, redesigned landing page
 - 2026-02-19: Added Statistics page with real-time analytics (per-app breakdowns, license/user/token stats)
 - 2026-02-19: Added public client API (/api/1.2/) supporting init, login, register, license, upgrade, ban

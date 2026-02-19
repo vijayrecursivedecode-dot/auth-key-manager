@@ -71,8 +71,11 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <a href="/api/login">
-              <Button data-testid="button-login">Log In</Button>
+            <a href="/login">
+              <Button variant="outline" data-testid="button-login">Log In</Button>
+            </a>
+            <a href="/register">
+              <Button data-testid="button-register">Sign Up</Button>
             </a>
           </div>
         </div>
@@ -98,7 +101,7 @@ export default function LandingPage() {
               Manage applications, licenses, users, and tokens from one powerful dashboard.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-              <a href="/api/login">
+              <a href="/register">
                 <Button size="lg" data-testid="button-get-started">
                   Get Started Free
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -204,7 +207,7 @@ export default function LandingPage() {
                 applications.
               </p>
               <div className="mt-8">
-                <a href="/api/login">
+                <a href="/register">
                   <Button size="lg" data-testid="button-cta-get-started">
                     Get Started Now
                     <ArrowRight className="ml-2 h-4 w-4" />

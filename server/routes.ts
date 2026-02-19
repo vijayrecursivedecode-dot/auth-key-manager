@@ -1,8 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
+import { users } from "@shared/models/auth";
+import { licenses as licensesTable } from "@shared/schema";
+import { db } from "./db";
 
 interface ClientSession {
   sessionId: string;
@@ -327,6 +332,150 @@ function registerClientApi(app: Express) {
   app.get("/api/1.2", handleClientRequest);
 }
 
+const localSessions = new Map<string, { userId: string; createdAt: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of localSessions) {
+    if (now - session.createdAt > 86400000) {
+      localSessions.delete(id);
+    }
+  }
+}, 600000);
+
+function registerLocalAuth(app: Express) {
+  app.post("/api/local/register", async (req, res) => {
+    try {
+      const { username, password, licenseKey } = req.body;
+      if (!username || !password || !licenseKey) {
+        return res.status(400).json({ message: "Username, password, and license key are required." });
+      }
+      if (username.length < 3) {
+        return res.status(400).json({ message: "Username must be at least 3 characters." });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters." });
+      }
+      const existing = await storage.getAccountByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Username already taken." });
+      }
+      const [license] = await db.select().from(licensesTable)
+        .where(eq(licensesTable.licenseKey, licenseKey));
+      if (!license) {
+        return res.status(400).json({ message: "Invalid license key." });
+      }
+      if (!license.enabled) {
+        return res.status(400).json({ message: "License key is disabled." });
+      }
+      if (license.usedBy) {
+        return res.status(400).json({ message: "License key has already been used." });
+      }
+      const passwordHash = await bcrypt.hash(password, 10);
+      const userId = randomUUID();
+      const [user] = await db.insert(users).values({
+        id: userId,
+        firstName: username,
+        email: `${username}@keyvault.local`,
+      }).returning();
+      const account = await storage.createAccount(username, passwordHash, userId);
+      await db.update(licensesTable).set({
+        usedBy: username,
+        usedCount: (license.usedCount || 0) + 1,
+      }).where(eq(licensesTable.id, license.id));
+      const sessionId = randomUUID();
+      localSessions.set(sessionId, { userId, createdAt: Date.now() });
+      res.cookie("kv_session", sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 86400000,
+        path: "/",
+      });
+      return res.json({ success: true, user: { id: userId, firstName: username, email: user.email } });
+    } catch (error: any) {
+      console.error("Register error:", error);
+      if (error?.code === "23505") {
+        return res.status(400).json({ message: "Username already taken." });
+      }
+      return res.status(500).json({ message: "Registration failed." });
+    }
+  });
+
+  app.post("/api/local/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required." });
+      }
+      const account = await storage.getAccountByUsername(username);
+      if (!account) {
+        return res.status(401).json({ message: "Invalid username or password." });
+      }
+      const valid = await bcrypt.compare(password, account.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid username or password." });
+      }
+      const sessionId = randomUUID();
+      localSessions.set(sessionId, { userId: account.userId!, createdAt: Date.now() });
+      res.cookie("kv_session", sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 86400000,
+        path: "/",
+      });
+      const [user] = await db.select().from(users).where(eq(users.id, account.userId!));
+      return res.json({ success: true, user });
+    } catch (error) {
+      console.error("Login error:", error);
+      return res.status(500).json({ message: "Login failed." });
+    }
+  });
+
+  app.get("/api/local/user", async (req, res) => {
+    try {
+      const sessionId = req.cookies?.kv_session;
+      if (!sessionId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const session = localSessions.get(sessionId);
+      if (!session) {
+        return res.status(401).json({ message: "Session expired" });
+      }
+      const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      return res.json(user);
+    } catch (error) {
+      console.error("Get user error:", error);
+      return res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  app.post("/api/local/logout", async (req, res) => {
+    const sessionId = req.cookies?.kv_session;
+    if (sessionId) {
+      localSessions.delete(sessionId);
+    }
+    res.clearCookie("kv_session", { path: "/" });
+    return res.json({ success: true });
+  });
+}
+
+function isAuthenticatedCombined(req: any, res: any, next: any) {
+  const kvSession = req.cookies?.kv_session;
+  if (kvSession) {
+    const session = localSessions.get(kvSession);
+    if (session) {
+      req.user = { claims: { sub: session.userId } };
+      return next();
+    }
+  }
+  return isAuthenticated(req, res, next);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -334,9 +483,10 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  registerLocalAuth(app);
   registerClientApi(app);
 
-  app.get("/api/applications", isAuthenticated, async (req: any, res) => {
+  app.get("/api/applications", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const apps = await storage.getApplicationsByOwner(userId);
@@ -347,7 +497,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/applications", isAuthenticated, async (req: any, res) => {
+  app.post("/api/applications", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { name, version } = req.body;
@@ -366,7 +516,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/applications/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/applications/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const existing = await storage.getApplication(req.params.id);
@@ -381,7 +531,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/applications/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/applications/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const existing = await storage.getApplication(req.params.id);
@@ -396,7 +546,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/applications/:id/reset-secret", isAuthenticated, async (req: any, res) => {
+  app.post("/api/applications/:id/reset-secret", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const existing = await storage.getApplication(req.params.id);
@@ -411,7 +561,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/licenses", isAuthenticated, async (req: any, res) => {
+  app.get("/api/licenses", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const lics = await storage.getLicensesByOwner(userId);
@@ -422,7 +572,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/licenses", isAuthenticated, async (req: any, res) => {
+  app.post("/api/licenses", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { appId, count, duration, durationUnit, level, maxUses, note } = req.body;
@@ -451,7 +601,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/licenses/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/licenses/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const lic = await storage.getLicense(req.params.id);
@@ -466,7 +616,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/licenses/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/licenses/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const lic = await storage.getLicense(req.params.id);
@@ -481,7 +631,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/app-users", isAuthenticated, async (req: any, res) => {
+  app.get("/api/app-users", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const users = await storage.getAppUsersByOwner(userId);
@@ -492,7 +642,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/app-users", isAuthenticated, async (req: any, res) => {
+  app.post("/api/app-users", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { appId, username, password } = req.body;
@@ -515,7 +665,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/app-users/:id", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/app-users/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const appUser = await storage.getAppUser(req.params.id);
@@ -530,7 +680,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/app-users/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/app-users/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const appUser = await storage.getAppUser(req.params.id);
@@ -545,7 +695,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/tokens", isAuthenticated, async (req: any, res) => {
+  app.get("/api/tokens", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const toks = await storage.getTokensByOwner(userId);
@@ -556,7 +706,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/tokens", isAuthenticated, async (req: any, res) => {
+  app.post("/api/tokens", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { appId, count } = req.body;
@@ -573,7 +723,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/statistics", isAuthenticated, async (req: any, res) => {
+  app.get("/api/statistics", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const apps = await storage.getApplicationsByOwner(userId);
@@ -646,7 +796,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/tokens/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/tokens/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const tok = await storage.getToken(req.params.id);
