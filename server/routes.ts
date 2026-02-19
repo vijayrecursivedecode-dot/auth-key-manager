@@ -1,13 +1,55 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
+import nacl from "tweetnacl";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { users } from "@shared/models/auth";
 import { licenses as licensesTable } from "@shared/schema";
 import { db } from "./db";
+
+function getStableSigningKeyPair() {
+  const seed = createHash("sha256")
+    .update(process.env.SESSION_SECRET || "keyvault-default-signing-seed")
+    .digest()
+    .subarray(0, 32);
+  return nacl.sign.keyPair.fromSeed(seed);
+}
+
+const signingKeyPair = getStableSigningKeyPair();
+const API_PUBLIC_KEY = Buffer.from(signingKeyPair.publicKey).toString("hex");
+
+function padOwnerId(id: string): string {
+  return id.padStart(10, "0");
+}
+
+function unpadOwnerId(id: string): string {
+  return id.replace(/^0+/, "") || id;
+}
+
+function signResponse(body: string): { signature: string; timestamp: string } {
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const message = Buffer.from(timestamp + body);
+  const sig = nacl.sign.detached(message, signingKeyPair.secretKey);
+  return {
+    signature: Buffer.from(sig).toString("hex"),
+    timestamp,
+  };
+}
+
+function sendSignedJson(res: any, ownerid: string, data: any) {
+  const responseData = { ...data, ownerid };
+  if (!("code" in responseData)) {
+    responseData.code = data.success ? "68" : "0";
+  }
+  const body = JSON.stringify(responseData);
+  const { signature, timestamp } = signResponse(body);
+  res.set("x-signature-ed25519", signature);
+  res.set("x-signature-timestamp", timestamp);
+  return res.send(body);
+}
 
 interface ClientSession {
   sessionId: string;
@@ -48,26 +90,41 @@ function registerClientApi(app: Express) {
 
     const params = { ...req.query, ...req.body };
     const { type } = params;
+    const reqOwnerid = params.ownerid || "";
+
+    const sendRes = (data: any) => sendSignedJson(res, reqOwnerid, data);
 
     try {
       switch (type) {
         case "init": {
           const { name, ownerid, ver, secret } = params;
           if (!name || !ownerid) {
-            return res.json({ success: false, message: "Missing name or ownerid" });
+            return sendSignedJson(res, ownerid || "", { success: false, message: "Missing name or ownerid" });
           }
-          const application = await storage.getApplicationByNameAndOwner(name, ownerid);
+          let application = await storage.getApplicationByNameAndOwner(name, ownerid);
           if (!application) {
-            return res.json({ success: false, message: "Application not found. Check your application name and owner ID." });
+            const rawId = unpadOwnerId(ownerid);
+            if (rawId !== ownerid) {
+              application = await storage.getApplicationByNameAndOwner(name, rawId);
+            }
+          }
+          if (!application) {
+            const paddedId = padOwnerId(ownerid);
+            if (paddedId !== ownerid) {
+              application = await storage.getApplicationByNameAndOwner(name, paddedId);
+            }
+          }
+          if (!application) {
+            return sendSignedJson(res, ownerid, { success: false, message: "Application not found. Check your application name and owner ID." });
           }
           if (secret && application.secret !== secret) {
-            return res.json({ success: false, message: "Invalid application secret." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Invalid application secret." });
           }
           if (!application.enabled) {
-            return res.json({ success: false, message: "Application is disabled by the owner." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Application is disabled by the owner." });
           }
           if (ver && application.version && ver !== application.version) {
-            return res.json({ success: false, message: "invalidver", download: "" });
+            return sendSignedJson(res, ownerid, { success: false, message: "invalidver", download: "" });
           }
           const sessionId = randomUUID();
           clientSessions.set(sessionId, {
@@ -76,10 +133,11 @@ function registerClientApi(app: Express) {
             validated: true,
             createdAt: Date.now(),
           });
-          return res.json({
+          return sendSignedJson(res, ownerid, {
             success: true,
             message: "Initialized",
             sessionid: sessionId,
+            newSession: true,
             appinfo: {
               numUsers: String((await storage.getAppUsersByApp(application.id)).length),
               numOnlineUsers: "0",
@@ -95,27 +153,27 @@ function registerClientApi(app: Express) {
           const { username, pass, hwid, sessionid, name: appName, ownerid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
-            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+            return sendRes({ success: false, message: "Invalid session. Please re-initialize." });
           }
           const application = await storage.getApplication(session.appId);
           if (!application || !application.enabled) {
-            return res.json({ success: false, message: "Application not found or disabled." });
+            return sendRes({ success: false, message: "Application not found or disabled." });
           }
           const appUser = await storage.getAppUserByUsername(username, session.appId);
           if (!appUser) {
-            return res.json({ success: false, message: "Username not found." });
+            return sendRes({ success: false, message: "Username not found." });
           }
           if (appUser.banned) {
-            return res.json({ success: false, message: "User is banned." });
+            return sendRes({ success: false, message: "User is banned." });
           }
           if (appUser.password && appUser.password !== pass) {
-            return res.json({ success: false, message: "Incorrect password." });
+            return sendRes({ success: false, message: "Incorrect password." });
           }
           if (appUser.expiresAt && new Date(appUser.expiresAt) < new Date()) {
-            return res.json({ success: false, message: "Subscription expired." });
+            return sendRes({ success: false, message: "Subscription expired." });
           }
           if (application.hwidLock && appUser.hwid && hwid && appUser.hwid !== hwid) {
-            return res.json({ success: false, message: "HWID mismatch. This account is locked to a different device." });
+            return sendRes({ success: false, message: "HWID mismatch. This account is locked to a different device." });
           }
           const updateData: any = {
             lastLogin: new Date(),
@@ -126,7 +184,7 @@ function registerClientApi(app: Express) {
           }
           await storage.updateAppUser(appUser.id, updateData);
           session.userId = appUser.id;
-          return res.json({
+          return sendRes({
             success: true,
             message: "Logged in successfully.",
             info: {
@@ -144,25 +202,25 @@ function registerClientApi(app: Express) {
           const { username, pass, key, hwid, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
-            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+            return sendRes({ success: false, message: "Invalid session. Please re-initialize." });
           }
           const application = await storage.getApplication(session.appId);
           if (!application || !application.enabled) {
-            return res.json({ success: false, message: "Application not found or disabled." });
+            return sendRes({ success: false, message: "Application not found or disabled." });
           }
           const existingUser = await storage.getAppUserByUsername(username, session.appId);
           if (existingUser) {
-            return res.json({ success: false, message: "Username already taken." });
+            return sendRes({ success: false, message: "Username already taken." });
           }
           const license = await storage.getLicenseByKey(key, session.appId);
           if (!license) {
-            return res.json({ success: false, message: "Invalid license key." });
+            return sendRes({ success: false, message: "Invalid license key." });
           }
           if (!license.enabled) {
-            return res.json({ success: false, message: "License key is disabled." });
+            return sendRes({ success: false, message: "License key is disabled." });
           }
           if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses) {
-            return res.json({ success: false, message: "License key has reached maximum uses." });
+            return sendRes({ success: false, message: "License key has reached maximum uses." });
           }
           let expiresAt: Date | null = null;
           if (license.duration) {
@@ -190,7 +248,7 @@ function registerClientApi(app: Express) {
             usedBy: username,
           });
           session.userId = newUser.id;
-          return res.json({
+          return sendRes({
             success: true,
             message: "Registered successfully.",
             info: {
@@ -208,21 +266,21 @@ function registerClientApi(app: Express) {
           const { key, hwid, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
-            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+            return sendRes({ success: false, message: "Invalid session. Please re-initialize." });
           }
           const application = await storage.getApplication(session.appId);
           if (!application || !application.enabled) {
-            return res.json({ success: false, message: "Application not found or disabled." });
+            return sendRes({ success: false, message: "Application not found or disabled." });
           }
           const license = await storage.getLicenseByKey(key, session.appId);
           if (!license) {
-            return res.json({ success: false, message: "Invalid license key." });
+            return sendRes({ success: false, message: "Invalid license key." });
           }
           if (!license.enabled) {
-            return res.json({ success: false, message: "License key is disabled." });
+            return sendRes({ success: false, message: "License key is disabled." });
           }
           if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses && !license.usedBy) {
-            return res.json({ success: false, message: "License key has reached maximum uses." });
+            return sendRes({ success: false, message: "License key has reached maximum uses." });
           }
           let expiresAt = license.expiresAt;
           if (!expiresAt && license.duration) {
@@ -237,7 +295,7 @@ function registerClientApi(app: Express) {
             await storage.updateLicense(license.id, { expiresAt });
           }
           if (expiresAt && new Date(expiresAt) < new Date()) {
-            return res.json({ success: false, message: "License key has expired." });
+            return sendRes({ success: false, message: "License key has expired." });
           }
           if (!license.usedBy) {
             await storage.updateLicense(license.id, {
@@ -245,9 +303,9 @@ function registerClientApi(app: Express) {
               usedBy: hwid || "license-auth",
             });
           } else if (license.usedBy !== hwid && hwid && application.hwidLock) {
-            return res.json({ success: false, message: "License is already bound to a different device." });
+            return sendRes({ success: false, message: "License is already bound to a different device." });
           }
-          return res.json({
+          return sendRes({
             success: true,
             message: "License key validated successfully.",
             info: {
@@ -265,18 +323,18 @@ function registerClientApi(app: Express) {
           const { username, key, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
-            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+            return sendRes({ success: false, message: "Invalid session. Please re-initialize." });
           }
           const appUser = await storage.getAppUserByUsername(username, session.appId);
           if (!appUser) {
-            return res.json({ success: false, message: "Username not found." });
+            return sendRes({ success: false, message: "Username not found." });
           }
           const license = await storage.getLicenseByKey(key, session.appId);
           if (!license || !license.enabled) {
-            return res.json({ success: false, message: "Invalid or disabled license key." });
+            return sendRes({ success: false, message: "Invalid or disabled license key." });
           }
           if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses) {
-            return res.json({ success: false, message: "License key has reached maximum uses." });
+            return sendRes({ success: false, message: "License key has reached maximum uses." });
           }
           let expiresAt = appUser.expiresAt ? new Date(appUser.expiresAt) : new Date();
           if (expiresAt < new Date()) expiresAt = new Date();
@@ -295,7 +353,7 @@ function registerClientApi(app: Express) {
             usedCount: (license.usedCount || 0) + 1,
             usedBy: username,
           });
-          return res.json({
+          return sendRes({
             success: true,
             message: "Upgrade successful.",
           });
@@ -305,30 +363,30 @@ function registerClientApi(app: Express) {
           const { sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated || !session.userId) {
-            return res.json({ success: false, message: "Invalid session or no user logged in." });
+            return sendRes({ success: false, message: "Invalid session or no user logged in." });
           }
           await storage.updateAppUser(session.userId, { banned: true });
-          return res.json({ success: true, message: "User has been banned." });
+          return sendRes({ success: true, message: "User has been banned." });
         }
 
         case "var": {
-          return res.json({ success: false, message: "Variables are not supported yet." });
+          return sendRes({ success: false, message: "Variables are not supported yet." });
         }
 
         case "webhook": {
-          return res.json({ success: false, message: "Webhooks are not supported yet." });
+          return sendRes({ success: false, message: "Webhooks are not supported yet." });
         }
 
         case "log": {
-          return res.json({ success: true, message: "Log received." });
+          return sendRes({ success: true, message: "Log received." });
         }
 
         default:
-          return res.json({ success: false, message: `Unknown request type: ${type}` });
+          return sendRes({ success: false, message: `Unknown request type: ${type}` });
       }
     } catch (error) {
       console.error("Client API error:", error);
-      return res.json({ success: false, message: "Server error" });
+      return sendRes({ success: false, message: "Server error" });
     }
   };
 
@@ -340,6 +398,11 @@ function registerClientApi(app: Express) {
   app.get("/api/1.2", handleClientRequest);
   app.post("/api/1.3", handleClientRequest);
   app.get("/api/1.3", handleClientRequest);
+
+  app.get("/api/public-key", (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.json({ publicKey: API_PUBLIC_KEY });
+  });
 }
 
 const localSessions = new Map<string, { userId: string; createdAt: number }>();

@@ -36,29 +36,30 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
   const name = app.name;
   const secret = app.secret;
   const version = app.version || "1.0";
+  const paddedOwnerId = ownerId.padStart(10, "0");
   const apiUrl = window.location.origin + "/api/1.2/";
 
   switch (lang) {
     case "C#":
       return `public static api KeyVaultApp = new api(
     name: "${name}",
-    ownerid: "${ownerId}",
+    ownerid: "${paddedOwnerId}",
     secret: "${secret}",
     version: "${version}",
     url: "${apiUrl}"
 );`;
     case "C++":
       return `std::string name = "${name}";
-std::string ownerid = "${ownerId}";
-std::string secret = "${secret}";
+std::string ownerid = "${paddedOwnerId}";
 std::string version = "${version}";
-std::string url = "${apiUrl}";
+std::string url = "${window.location.origin}/api/1.3/";
+std::string path = "";
 
-KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
+KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     case "Java":
       return `public static KeyVault KeyVaultApp = new KeyVault(
     "${name}",
-    "${ownerId}",
+    "${paddedOwnerId}",
     "${secret}",
     "${version}",
     "${apiUrl}"
@@ -66,7 +67,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Python":
       return `keyvaultapp = api(
     name="${name}",
-    ownerid="${ownerId}",
+    ownerid="${paddedOwnerId}",
     secret="${secret}",
     version="${version}",
     url="${apiUrl}"
@@ -74,7 +75,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "PHP":
       return `$KeyVaultApp = new KeyVault\\api(
     "${name}",
-    "${ownerId}",
+    "${paddedOwnerId}",
     "${secret}",
     "${version}",
     "${apiUrl}"
@@ -82,7 +83,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "JavaScript":
       return `const KeyVaultApp = new KeyVault({
     name: "${name}",
-    ownerId: "${ownerId}",
+    ownerId: "${paddedOwnerId}",
     secret: "${secret}",
     version: "${version}",
     url: "${apiUrl}"
@@ -90,7 +91,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "TypeScript":
       return `const KeyVaultApp: KeyVault = new KeyVault({
     name: "${name}",
-    ownerId: "${ownerId}",
+    ownerId: "${paddedOwnerId}",
     secret: "${secret}",
     version: "${version}",
     url: "${apiUrl}"
@@ -98,7 +99,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "VB.Net":
       return `Public Shared KeyVaultApp As New api(
     name:="${name}",
-    ownerid:="${ownerId}",
+    ownerid:="${paddedOwnerId}",
     secret:="${secret}",
     version:="${version}",
     url:="${apiUrl}"
@@ -106,7 +107,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Rust":
       return `let mut keyvaultapp = KeyVaultApi::new(
     "${name}",
-    "${ownerId}",
+    "${paddedOwnerId}",
     "${secret}",
     "${version}",
     "${apiUrl}"
@@ -114,7 +115,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Go":
       return `var api = keyvault.KeyVault{
     Name:    "${name}",
-    OwnerId: "${ownerId}",
+    OwnerId: "${paddedOwnerId}",
     Secret:  "${secret}",
     Version: "${version}",
     Url:     "${apiUrl}",
@@ -122,7 +123,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Lua":
       return `local KeyVaultApp = KeyVault:new(
     "${name}",
-    "${ownerId}",
+    "${paddedOwnerId}",
     "${secret}",
     "${version}",
     "${apiUrl}"
@@ -130,7 +131,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Ruby":
       return `keyvault_app = KeyVault::API.new(
     name: "${name}",
-    owner_id: "${ownerId}",
+    owner_id: "${paddedOwnerId}",
     secret: "${secret}",
     version: "${version}",
     url: "${apiUrl}"
@@ -138,7 +139,7 @@ KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Perl":
       return `my $keyvault = KeyVault::API->new(
     name     => "${name}",
-    owner_id => "${ownerId}",
+    owner_id => "${paddedOwnerId}",
     secret   => "${secret}",
     version  => "${version}",
     url      => "${apiUrl}"
@@ -425,12 +426,12 @@ export default function AppSettingsPage() {
                   </p>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-mono text-sm" data-testid="text-cred-owner-id">
-                      {user?.id || ""}
+                      {(user?.id || "").padStart(10, "0")}
                     </p>
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => copyToClipboard(user?.id || "", "Owner ID")}
+                      onClick={() => copyToClipboard((user?.id || "").padStart(10, "0"), "Owner ID")}
                       data-testid="button-copy-owner-id"
                     >
                       <Copy className="h-4 w-4" />
