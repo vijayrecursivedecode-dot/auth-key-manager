@@ -29,14 +29,18 @@ setInterval(() => {
 }, 300000);
 
 function registerClientApi(app: Express) {
-  app.options("/api/1.2/", (req, res) => {
+  const corsHandler = (req: any, res: any) => {
     res.set({
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Accept",
     });
     res.sendStatus(204);
-  });
+  };
+  app.options("/api/1.2/", corsHandler);
+  app.options("/api/1.3/", corsHandler);
+  app.options("/api/1.2", corsHandler);
+  app.options("/api/1.3", corsHandler);
 
   const handleClientRequest = async (req: any, res: any) => {
     res.set("Access-Control-Allow-Origin", "*");
@@ -78,9 +82,11 @@ function registerClientApi(app: Express) {
             sessionid: sessionId,
             appinfo: {
               numUsers: String((await storage.getAppUsersByApp(application.id)).length),
+              numOnlineUsers: "0",
               numKeys: String((await storage.getLicensesByApp(application.id)).length),
               version: application.version,
               customerPanelLink: "",
+              downloadLink: "",
             },
           });
         }
@@ -328,8 +334,12 @@ function registerClientApi(app: Express) {
 
   app.post("/api/1.2/", handleClientRequest);
   app.get("/api/1.2/", handleClientRequest);
+  app.post("/api/1.3/", handleClientRequest);
+  app.get("/api/1.3/", handleClientRequest);
   app.post("/api/1.2", handleClientRequest);
   app.get("/api/1.2", handleClientRequest);
+  app.post("/api/1.3", handleClientRequest);
+  app.get("/api/1.3", handleClientRequest);
 }
 
 const localSessions = new Map<string, { userId: string; createdAt: number }>();
