@@ -83,6 +83,8 @@ export interface IStorage {
   getAccountByUsername(username: string): Promise<Account | undefined>;
   getAccountByUserId(userId: string): Promise<Account | undefined>;
   createAccount(username: string, passwordHash: string, userId: string): Promise<Account>;
+  getUserByNumericId(numericId: string): Promise<User | undefined>;
+  ensureNumericId(userId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -305,6 +307,30 @@ export class DatabaseStorage implements IStorage {
       .values({ username, passwordHash, userId })
       .returning();
     return account;
+  }
+
+  async getUserByNumericId(numericId: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.numericId, numericId));
+    return user;
+  }
+
+  async ensureNumericId(userId: string): Promise<string> {
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return "0000000000";
+    if (user.numericId) return user.numericId;
+    let numericId: string;
+    let attempts = 0;
+    do {
+      numericId = String(Math.floor(Math.random() * 9000000000) + 1000000000);
+      const existing = await this.getUserByNumericId(numericId);
+      if (!existing) break;
+      attempts++;
+    } while (attempts < 10);
+    await db.update(users).set({ numericId }).where(eq(users.id, userId));
+    return numericId;
   }
 }
 

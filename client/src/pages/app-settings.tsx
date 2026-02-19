@@ -36,7 +36,7 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
   const name = app.name;
   const secret = app.secret;
   const version = app.version || "1.0";
-  const paddedOwnerId = ownerId.padStart(10, "0");
+  const paddedOwnerId = ownerId;
   const apiUrl = window.location.origin + "/api/1.3/";
 
   switch (lang) {
@@ -429,12 +429,12 @@ export default function AppSettingsPage() {
                   </p>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-mono text-sm" data-testid="text-cred-owner-id">
-                      {(user?.id || "").padStart(10, "0")}
+                      {(user as any)?.numericId || user?.id || ""}
                     </p>
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => copyToClipboard((user?.id || "").padStart(10, "0"), "Owner ID")}
+                      onClick={() => copyToClipboard((user as any)?.numericId || user?.id || "", "Owner ID")}
                       data-testid="button-copy-owner-id"
                     >
                       <Copy className="h-4 w-4" />
@@ -520,7 +520,7 @@ export default function AppSettingsPage() {
                 <div className="rounded-md border bg-muted/50 p-4">
                   <pre className="overflow-x-auto text-sm leading-relaxed">
                     <code data-testid="text-code-snippet">
-                      {getCodeSnippet(snippetLang, selectedApp, user?.id || "")}
+                      {getCodeSnippet(snippetLang, selectedApp, (user as any)?.numericId || user?.id || "")}
                     </code>
                   </pre>
                 </div>
@@ -530,7 +530,7 @@ export default function AppSettingsPage() {
                     variant="default"
                     onClick={() =>
                       copyToClipboard(
-                        getCodeSnippet(snippetLang, selectedApp, user?.id || ""),
+                        getCodeSnippet(snippetLang, selectedApp, (user as any)?.numericId || user?.id || ""),
                         "Code snippet"
                       )
                     }
@@ -668,7 +668,7 @@ export default function AppSettingsPage() {
                         <div className="mt-2 rounded-md border bg-muted/50 p-3">
                           <pre className="overflow-x-auto text-xs leading-relaxed">
                             <code data-testid="text-cpp-setup-code">{`std::string name = "${selectedApp.name}";
-std::string ownerid = "${(user?.id || "").padStart(10, "0")}";
+std::string ownerid = "${(user as any)?.numericId || user?.id || ""}";
 std::string version = "${selectedApp.version || "1.0"}";
 std::string url = "${window.location.origin}/api/1.3/";
 std::string path = "";`}</code>
@@ -678,7 +678,7 @@ std::string path = "";`}</code>
                             variant="ghost"
                             className="mt-2"
                             onClick={() => copyToClipboard(
-                              `std::string name = "${selectedApp.name}";\nstd::string ownerid = "${(user?.id || "").padStart(10, "0")}";\nstd::string version = "${selectedApp.version || "1.0"}";\nstd::string url = "${window.location.origin}/api/1.3/";\nstd::string path = "";`,
+                              `std::string name = "${selectedApp.name}";\nstd::string ownerid = "${(user as any)?.numericId || user?.id || ""}";\nstd::string version = "${selectedApp.version || "1.0"}";\nstd::string url = "${window.location.origin}/api/1.3/";\nstd::string path = "";`,
                               "C++ init code"
                             )}
                             data-testid="button-copy-cpp-init"
@@ -707,7 +707,7 @@ std::string path = "";`}</code>
                           <pre className="overflow-x-auto text-xs leading-relaxed">
                             <code data-testid="text-cs-setup-code">{`public static api KeyAuthApp = new api(
     name: "${selectedApp.name}",
-    ownerid: "${(user?.id || "").padStart(10, "0")}",
+    ownerid: "${(user as any)?.numericId || user?.id || ""}",
     version: "${selectedApp.version || "1.0"}"
 );`}</code>
                           </pre>
@@ -716,7 +716,7 @@ std::string path = "";`}</code>
                             variant="ghost"
                             className="mt-2"
                             onClick={() => copyToClipboard(
-                              `public static api KeyAuthApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user?.id || "").padStart(10, "0")}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
+                              `public static api KeyAuthApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user as any)?.numericId || user?.id || ""}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
                               "C# init code"
                             )}
                             data-testid="button-copy-cs-init"

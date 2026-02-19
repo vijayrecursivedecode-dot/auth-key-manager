@@ -140,6 +140,12 @@ function registerClientApi(app: Express) {
               application = await storage.getApplicationByNameAndOwner(name, paddedId);
             }
           }
+          if (!application && ownerid.length === 10 && /^\d+$/.test(ownerid)) {
+            const user = await storage.getUserByNumericId(ownerid);
+            if (user) {
+              application = await storage.getApplicationByNameAndOwner(name, user.id);
+            }
+          }
           if (!application) {
             return sendSignedJson(res, ownerid, { success: false, message: "Application not found. Check your application name and owner ID." }, enckey);
           }
@@ -670,7 +676,8 @@ function registerLocalAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: "User not found" });
       }
-      return res.json(user);
+      const numericId = await storage.ensureNumericId(user.id);
+      return res.json({ ...user, numericId });
     } catch (error) {
       console.error("Get user error:", error);
       return res.status(500).json({ message: "Failed to get user" });
