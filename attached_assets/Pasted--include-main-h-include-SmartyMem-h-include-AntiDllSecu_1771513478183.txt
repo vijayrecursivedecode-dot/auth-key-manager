@@ -1,0 +1,3033 @@
+#include "main.h"
+#include "SmartyMem.h"
+
+#include "AntiDllSecurity.h"
+#include <tchar.h>
+#include <dwmapi.h>
+#include "auth/auth.hpp"
+#include <thread>
+#pragma comment(lib, "Dwmapi.lib")
+#include <ShObjIdl_core.h>
+#include "SmartyMem2.h"
+#include "BrutalMemory.h"
+#include "ExecuteBat.h"
+#include "Particles/AnimVector.h"
+#include"DiscordSDK/src/discord_register.h"
+#include"DiscordSDK/src/discord_rpc.h"
+#include "DllInjection.h"
+#include "SoundPlayer.h"
+
+static int dnd_counter = 0;
+
+static bool checkbox[99] = { false };
+
+static int slider_int = false;
+
+const char* themes[]{ "Head","Chest", "Legs", "Hands" };
+
+const char* auto_stop[]{ "Betwen shots", "Force accuracy", "Power accuracy", "Auto sleep" };
+
+static int combo;
+
+static int keybind;
+
+static bool show_login = true;
+static bool showConfirmDialog = false;
+
+static int TabsRB;
+float tab_size = 0.f;
+bool tab_opening = true;
+
+static int iTabs;
+static int menu_state = 0;
+float timer_loading = 0.f;
+
+static float text_animation = 0.00f;
+static float loader_animation = 0.f;
+static bool text_animation_hide = true;
+float color_edit[4];
+
+static bool holaaa = false;
+
+std::string tm_to_readable_time(tm ctx);
+static std::time_t string_to_timet(std::string timestamp);
+static std::tm timet_to_tm(time_t timestamp);
+const std::string compilation_date = (std::string)skCrypt(__DATE__);
+const std::string compilation_time = (std::string)skCrypt(__TIME__);
+
+
+Memory memory;
+SmartyMemory decrypt2;
+SmartyMemory Smarty2;
+SmartyMemory mirza;
+BrutalMemory brutalmem;
+
+std::string MemoryLogs = "";
+using namespace KeyAuth;
+
+std::string name = "power";                    // from Application Name
+std::string ownerid = "54833840";              // from Account Owner ID  
+std::string version = "1.0";                   // from Application Version
+std::string url = "https://keyauth-manager.replit.app/api/1.3/";  // your KeyVault URL
+std::string path = "";
+
+
+
+
+api KeyAuthApp(name, ownerid, version, url, path);
+
+
+
+
+
+std::string tm_to_readable_time(tm ctx)
+{
+    char buffer[80];
+
+    strftime(buffer, sizeof(buffer), "%a %m/%d/%Y", &ctx);
+
+    return std::string(buffer);
+}
+
+static std::time_t string_to_timet(std::string timestamp)
+{
+    auto cv = strtol(timestamp.c_str(), NULL, 10);
+
+    return (time_t)cv;
+}
+
+static std::tm timet_to_tm(time_t timestamp)
+{
+    std::tm context;
+
+    localtime_s(&context, &timestamp);
+
+    return context;
+}
+
+
+extern "C"
+{
+    NTSTATUS NTAPI NtSuspendProcess(HANDLE ProcessHandle);
+    NTSTATUS NTAPI NtResumeProcess(HANDLE ProcessHandle);
+}
+
+
+
+void Logout()
+{
+    show_login = true;
+    menu_state = 0;
+    notificationSystem.Notification("Notification", "Logged Out ", main_color);
+
+}
+
+
+bool isProcessRunning(const char* processName)
+{
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (!Process32First(hSnap, &pe32))
+    {
+        CloseHandle(hSnap);
+        return false;
+    }
+
+    do
+    {
+        if (_stricmp(pe32.szExeFile, processName) == 0)
+        {
+            CloseHandle(hSnap);
+            return true;
+        }
+    } while (Process32Next(hSnap, &pe32));
+
+    CloseHandle(hSnap);
+    return false;
+}
+
+bool isProcessSuspended(DWORD processId)
+{
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return false;
+    }
+
+    THREADENTRY32 te32;
+    te32.dwSize = sizeof(THREADENTRY32);
+
+    if (!Thread32First(hSnap, &te32))
+    {
+        CloseHandle(hSnap);
+        return false;
+    }
+
+    do
+    {
+        if (te32.th32OwnerProcessID == processId)
+        {
+            HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID);
+            if (hThread != NULL)
+            {
+                DWORD suspendCount = SuspendThread(hThread);
+                ResumeThread(hThread);
+
+                CloseHandle(hThread);
+
+                if (suspendCount != (DWORD)-1 && suspendCount > 0)
+                {
+                    CloseHandle(hSnap);
+                    return true;
+                }
+            }
+        }
+    } while (Thread32Next(hSnap, &te32));
+
+    CloseHandle(hSnap);
+    return false;
+}
+
+
+
+void terminateProcess(const char* processName)
+{
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap == INVALID_HANDLE_VALUE)
+    {
+        return;
+    }
+
+    PROCESSENTRY32 pe32;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (!Process32First(hSnap, &pe32))
+    {
+        CloseHandle(hSnap);
+        return;
+    }
+
+    do
+    {
+        if (_stricmp(pe32.szExeFile, processName) == 0)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
+            if (hProcess != NULL)
+            {
+                PostThreadMessage(pe32.th32ProcessID, WM_QUIT, 0, 0);
+
+                TerminateProcess(hProcess, 0);
+                CloseHandle(hProcess);
+            }
+            break;
+        }
+    } while (Process32Next(hSnap, &pe32));
+
+    CloseHandle(hSnap);
+}
+
+bool isProcessFrozen = false;
+
+
+bool hotkeypressed1 = false;
+bool hotkeypressed2 = false;
+bool hotkeypressed3 = false;
+float rafax[10] = { 0.0f };
+
+static int AimKey;
+static int flbind;
+static int entityspeedkey;
+static int nightmoodkey;
+static int camerarightkey;
+static int entityWallHackkey;
+static int entityfastlandkey;
+static int enablecam;
+static int aimbotv18key;
+static int aimbotneckkey;
+static int aimbotdragkey;
+static int pintopkey;
+static int streamermodekey;
+static int entitycamerarkey;
+
+int entitycamerarsave = 0;
+int entitycamerar = 0;
+int entitynightmoodkeysave = 0;
+int entitynight = 0;
+int entityspeedsave = 0;
+int entityspeed = 0;
+int entitywallsave = 0;
+int entitywall = 0;
+int entityfastlandsave = 0;
+int entityfastland = 0;
+int entityWallHacksave = 0;
+int entityWallHack = 0;
+int entityCameraHacksave = 0;
+int entityCameraHack = 0;
+int streamermode = 0;
+int pintop = 0;
+bool fastlandload;
+bool speedload; //
+bool cameraload; //
+bool ccbc; ///
+bool authed = false;
+bool fastland;
+bool fixrb;
+bool aimbotex;
+bool sniper_bugfix;
+bool aimbotex2;
+bool aimbotv2;
+bool externaloff;
+bool e;
+bool speedx;
+bool sniperbugfix;
+bool no_reload;
+bool bypassrb;
+bool acb;
+bool sniperaim;
+bool wallhackv1;
+bool all_weponswitch;
+bool b;
+bool secspeed;
+bool secwall;
+bool aimfov;
+bool norecoil;
+bool guestreset;
+bool headtracking;
+bool nr;
+bool mg;
+bool wx;
+bool fastreload;
+bool Charms2D;
+bool charms3D;
+bool chams;
+bool charmsmenu;
+bool chamsv2;
+bool chams3d;
+bool chamsblue;
+bool chamsred;
+bool chamsbox;
+bool chamsboxcv;
+bool cameraleft;
+bool camloaded;
+bool espline;
+bool espname;
+bool aimbotlogindecrypt;
+bool chamsmala;
+bool chamswall;
+bool c;
+bool internet;
+bool stream;
+bool ModeStream = false;
+bool scope;
+bool magicv2 = false;
+bool enablefl;
+bool scopet;
+bool femalefix;
+bool scope4x;
+bool scope2xtracking;
+bool blacksky;
+bool SniperScope;
+bool awmnocope;
+bool vision5x;
+bool bodyx;
+bool f;
+bool drag;
+bool fov;
+bool flkey;
+bool norec;
+bool a;
+bool neww;
+bool anticheat;
+bool camarahackrb;
+bool visionhackrb1;
+bool AIMBOTHEAD1;
+bool Sniperswitch;
+
+static int fl = 0;
+
+namespace var
+{
+    int slider_integer = 250;
+    float slider_float = 50.f;
+    bool fastlandload;
+    bool chamsmala;
+    bool visionhackrb;
+    bool magicv2 = false;
+    bool wallhackv1;
+    bool camarahackrb1;
+    bool fix;
+    bool AIMBOTHEAD1;
+    bool blacksky;
+    bool b;
+    bool fastland;
+    bool femalefix;
+    bool c;
+    bool scope;
+    bool scopet;
+    bool scope4x;
+    bool aimbotlogindecrypt;
+    bool fastreload;
+    bool speedload; //
+    bool cameraload; //
+    bool ccbc; ///
+    bool e;
+    bool ModeStream = false;
+    bool aimbotex;
+    bool fixrb;
+
+    bool sniperswitch;
+    bool Sniperswitch;
+    bool neww;
+    bool wall_hack;
+    bool speed = false;
+    bool wallrb;
+    bool noreload;
+    bool SniperScope;
+    bool awmnocope;
+    bool vision5x;
+    bool bodyx;
+    bool drag;
+    bool fov;
+    bool enablefl;
+    bool flkey;
+    bool norec;
+    bool aimbotex2;
+    bool aimbotdrag;
+    bool externaloff;
+    bool bypassrb;
+    bool guestreset;
+    bool acb;
+    bool mg;
+    bool norecoil;
+    bool Sniperaim;
+    bool wall_hackv1;
+    bool all_weponswitch;
+    bool a;
+    bool internet;
+    bool aimfov;
+    bool f;
+    bool secspeed;
+    bool secwall;
+    bool anticheat;
+    bool headtracking;
+    bool nr;
+    bool chams;
+    bool charmsmenu;
+    bool scope2xtracking;
+    bool chamsv2;
+    bool chams3d;
+    bool chamsblue;
+    bool chamsred;
+    bool chamsbox;
+    bool chamsboxcv;
+    bool cameraleft;
+    bool enablecam;
+    bool camloaded;
+    bool espline;
+    bool espname;
+    bool chamsprueba;
+    bool Charms2D;
+    bool stream;
+    bool AIMBOTHEAD;
+
+
+}
+
+
+struct c_bytes
+{
+
+
+};  c_bytes bytes;
+
+/// AIMBOT CODES
+
+
+
+void xx12()
+{
+   
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    DWORD_PTR startAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+    DWORD_PTR endAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+    notificationSystem.Notification("Notification", "Aimbot Head Activating", main_color);   
+    Activating(); // aimbot activating sound
+
+    if (mirza.AttackProcess("HD-Player.exe")) {
+
+        std::vector<DWORD_PTR> aimbot_new;
+        std::vector<BYTE> SearchAimbot = { 0xFF, 0xFF, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, 0xA5, 0x43 };
+        mirza.FindPattern(startAddress, endAddress, SearchAimbot.data(), aimbot_new);
+        //porn.FindPattern(startAddress, endAddress, SearchAimbot.data(), aimbot_porn_new);
+         // result :: 
+
+        for (auto result : aimbot_new) {
+            int originalValue, originalValuex;
+
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 0x80), &originalValue, sizeof(originalValue), NULL)) {
+                std::cerr << "Failed to read memory at address: " << std::hex << (result + 0x80) << "\n";
+                continue;
+            }
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 0x80), &originalValuex, sizeof(originalValuex), NULL)) {
+                std::cerr << "Failed to read memory at address: " << std::hex << (result + 0x80) << "\n";
+                continue;
+            }                                                                                                                                                                                                                                                          //trx IS HEREE
+            if (!WriteProcessMemory(mirza.ProcessHandle, (LPVOID)(result + 0X7C), &originalValuex, sizeof(originalValuex), NULL)) {
+                std::cerr << "Failed to write memory at address: " << std::hex << (result + 0X7C) << "\n";
+                continue;
+            }
+            if (!WriteProcessMemory(mirza.ProcessHandle, (LPVOID)(result + 0X7C), &originalValue, sizeof(originalValue), NULL)) {
+                std::cerr << "Failed to write memory at address: " << std::hex << (result + 0X7C) << "\n";
+                //std::cerr << "Failed to write memory at address: " << std::hex << (result + 0x6C) << "\n"; 
+                continue;
+            }
+            int newValue;
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 0x80), &newValue, sizeof(newValue), NULL)) {
+                std::cerr << "Failed to read new value at address: " << std::hex << (result + 0x80) << "\n";
+                continue;
+            }
+            std::cout << "New value at 0x" << std::hex << (result + 0X7C) << ": " << std::dec << newValue << "\n";
+        }
+        CloseHandle(mirza.ProcessHandle);
+
+        notificationSystem.Notification("Notification", "Aimbot Head Activated", main_color);
+        ActivateAimbot(); // aimbot activated sound 
+        Beep(500, 500);  
+    }
+    else {
+        notificationSystem.Notification("Notification", "Aimbot Head Failed", main_color);
+    }
+}
+
+void neckxx()
+{
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    DWORD_PTR startAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+    DWORD_PTR endAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+    notificationSystem.Notification("Notification", "Aimbot Neck Activating", main_color);
+    Activating(); // aimbot activating sound
+
+
+    if (mirza.AttackProcess("HD-Player.exe")) {
+
+        std::vector<DWORD_PTR> aimbot_new;
+        std::vector<BYTE> SearchAimbot = { 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x43 };
+        mirza.FindPattern(startAddress, endAddress, SearchAimbot.data(), aimbot_new);
+
+
+        for (auto result : aimbot_new) {
+            int originalValue, originalValuex;
+
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 170), &originalValue, sizeof(originalValue), NULL)) {
+                std::cerr << "Failed to read memory at address: " << std::hex << (result + 170) << "\n";
+                continue;
+            }
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 170), &originalValuex, sizeof(originalValuex), NULL)) {
+                std::cerr << "Failed to read memory at address: " << std::hex << (result + 170) << "\n";
+                continue;
+            }                                                                                                                                                                                                                                                          //trx IS HEREE
+            if (!WriteProcessMemory(mirza.ProcessHandle, (LPVOID)(result + 166), &originalValuex, sizeof(originalValuex), NULL)) {
+                std::cerr << "Failed to write memory at address: " << std::hex << (result + 166) << "\n";
+                continue;
+            }
+            if (!WriteProcessMemory(mirza.ProcessHandle, (LPVOID)(result + 166), &originalValue, sizeof(originalValue), NULL)) {
+                std::cerr << "Failed to write memory at address: " << std::hex << (result + 166) << "\n";
+                continue;
+            }
+            int newValue;
+            if (!ReadProcessMemory(mirza.ProcessHandle, (LPCVOID)(result + 166), &newValue, sizeof(newValue), NULL)) {
+                std::cerr << "Failed to read new value at address: " << std::hex << (result + 166) << "\n";
+                continue;
+            }
+            std::cout << "New value at 0x" << std::hex << (result + 166) << ": " << std::dec << newValue << "\n";
+        }
+        CloseHandle(mirza.ProcessHandle);
+
+        notificationSystem.Notification("Notification", "Aimbot Neck Activated", main_color);
+        ActivateAimbot(); // aimbot activated sound
+        Beep(500, 500);
+    }
+
+    else {
+
+        notificationSystem.Notification("Notification", "Aimbot Neck Faild", main_color);
+
+
+    }
+}
+
+void aimbtv9decrypt()
+{
+    notificationSystem.Notification("Notification", "Applying !", main_color);
+    Activating(); // aimbot activating sound
+
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    DWORD_PTR startAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+    DWORD_PTR endAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+    if (memory.AttackProcess("HD-Player.exe")) {
+        std::vector<DWORD_PTR> aimbot_new;
+        std::vector<BYTE> SearchAimbot = { 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x43 };
+        memory.FindPattern(startAddress, endAddress, SearchAimbot.data(), aimbot_new);
+        if (aimbot_new.empty()) {
+
+
+
+
+        }
+
+
+        for (auto result : aimbot_new)
+        {
+            int read;
+            ReadProcessMemory(memory.ProcessHandle, (LPVOID)(result + 0xD6), &read, sizeof(read), NULL);
+
+            int write;
+            WriteProcessMemory(memory.ProcessHandle, (LPVOID)(result + 0xA6), &read, sizeof(read), NULL);
+
+        }
+        aimbot_new.clear();
+
+
+
+
+        notificationSystem.Notification("Notification", "Aimbot Drag: Successfully applied !", main_color);
+        MemoryLogs = "Aimbot Drag : Successfully Activated !";
+        ActivateAimbot(); // aimbot activated sound
+
+    }
+
+    else {
+        notificationSystem.Notification("Notification", "Aimbot Drag: Failed To Apply! !", main_color);
+        MemoryLogs = " Aimbot Drag : Failed To Apply !";
+
+    };
+
+}
+
+void neckonn()
+{
+    notificationSystem.Notification("Notification", "Applying !", main_color);
+
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    DWORD_PTR startAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+    DWORD_PTR endAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+    if (memory.AttackProcess("HD-Player.exe")) {
+        std::vector<DWORD_PTR> aimbot_new;
+        std::vector<BYTE> SearchAimbot = { 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA5, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', '?', '?', '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '?', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xBF, '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', 0x80, 0xBF };
+        memory.FindPattern(startAddress, endAddress, SearchAimbot.data(), aimbot_new);
+        if (aimbot_new.empty()) {
+
+
+
+
+        }
+
+
+        for (auto result : aimbot_new)
+        {
+            int read;
+            ReadProcessMemory(memory.ProcessHandle, (LPVOID)(result + 0x170L), &read, sizeof(read), NULL);
+
+            int write;
+            WriteProcessMemory(memory.ProcessHandle, (LPVOID)(result + 0x166L), &read, sizeof(read), NULL);
+
+        }
+        aimbot_new.clear();
+
+
+
+
+        notificationSystem.Notification("Notification", " Aimbot Neck: Successfully applied !", main_color);
+        MemoryLogs = " Aimbot Neck : Successfully Activated !";
+        ActivateAimbot(); // aimbot activated sound
+    }
+
+    else {
+        notificationSystem.Notification("Notification", " Aimbot Neck: Failed To Apply! !", main_color);
+        MemoryLogs = " Aimbot Neck : Failed To Apply !";
+
+    }
+
+
+
+}
+
+
+void DoWork1()
+{
+
+
+
+}
+DWORD WINAPI DoWork1(LPVOID lpParam)
+{
+
+
+
+    for (int i = 0; i < 10; ++i)
+    {
+        std::cout << "Working in Thread 1: " << i << std::endl;
+        Sleep(1000);
+    }
+
+    return 0;
+}
+
+bool DownloadFile(const std::string& DownloadLink, const std::string& SaveLocation)
+{
+    std::string command = "curl.exe --url \"" + DownloadLink + "\" --output \"" + SaveLocation + "\"";
+    int result = system(command.c_str());
+    if (result == 0)
+    {
+        std::cout << "File downloaded successfully." << std::endl;
+        return true;
+    }
+    else
+    {
+        std::cerr << "Failed to download file. Curl returned error code: " << result << std::endl;
+        return false;
+    }
+}
+
+bool DownloadFile1(const std::string& DownloadLink, const std::string& SaveLocation, const std::string& DownloadLink1, const std::string& SaveLocation1)
+{
+    std::string command = "curl.exe --url \"" + DownloadLink + "\" --output \"" + SaveLocation + "\"";
+    int result = system(command.c_str());
+    if (result == 0)
+    {
+        std::cout << "File downloaded successfully." << std::endl;
+        return true;
+    }
+    else
+    {
+        std::cerr << "Failed to download file. Curl returned error code: " << result << std::endl;
+        return false;
+    }
+}
+
+DWORD GetProcId(const char* procName)
+{
+    DWORD procId = 0;
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnap != INVALID_HANDLE_VALUE)
+    {
+        PROCESSENTRY32 procEntry;
+        procEntry.dwSize = sizeof(procEntry);
+        if (Process32First(hSnap, &procEntry))
+        {
+            do
+            {
+                if (!_stricmp(procEntry.szExeFile, procName))
+                {
+                    procId = procEntry.th32ProcessID;
+                    break;
+                }
+            } while (Process32Next(hSnap, &procEntry));
+        }
+    }
+    CloseHandle(hSnap);
+    return procId;
+}
+
+bool InjectDLL(const char* targetProcessName, const char* dllPath)
+{
+    PROCESSENTRY32 processEntry;
+    processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE)
+    {
+
+        MemoryLogs = "Error in creating the snapshot of the process";
+        return false;
+    }
+
+    HANDLE hProcess = nullptr;
+    if (Process32First(hSnapshot, &processEntry))
+    {
+        do
+        {
+            if (_stricmp(processEntry.szExeFile, targetProcessName) == 0)
+            {
+                hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processEntry.th32ProcessID);
+                break;
+            }
+        } while (Process32Next(hSnapshot, &processEntry));
+    }
+
+    CloseHandle(hSnapshot);
+
+    if (hProcess == nullptr)
+    {
+
+        MemoryLogs = "Emulator Not Found";
+        return false;
+    }
+
+
+    LPVOID pRemoteMemory = VirtualAllocEx(hProcess, nullptr, MAX_PATH, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    if (pRemoteMemory == nullptr)
+    {
+
+        MemoryLogs = "Error Allocating Remote Memory";
+        CloseHandle(hProcess);
+        return false;
+    }
+
+
+    WriteProcessMemory(hProcess, pRemoteMemory, dllPath, strlen(dllPath) + 1, nullptr);
+
+
+
+
+
+    HANDLE hThread = CreateRemoteThread(hProcess, nullptr, 0, (LPTHREAD_START_ROUTINE)LoadLibraryA, pRemoteMemory, 0, nullptr);
+    if (hThread == nullptr)
+    {
+
+        MemoryLogs = "Error raising remote thread";
+        VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+
+
+    WaitForSingleObject(hThread, INFINITE);
+
+
+    CloseHandle(hThread);
+    VirtualFreeEx(hProcess, pRemoteMemory, 0, MEM_RELEASE);
+    CloseHandle(hProcess);
+
+    MemoryLogs = "DLL Injected Successfully";
+
+    return true;
+}
+
+bool EjectDLL(const char* targetProcessName, const char* dllPath)
+{
+
+    PROCESSENTRY32 processEntry;
+    processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE)
+    {
+
+        MemoryLogs = "Error in creating the snapshot of the process";
+        return false;
+    }
+
+    HANDLE hProcess = nullptr;
+    if (Process32First(hSnapshot, &processEntry))
+    {
+        do
+        {
+            if (_stricmp(processEntry.szExeFile, targetProcessName) == 0)
+            {
+                hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, processEntry.th32ProcessID);
+                break;
+            }
+        } while (Process32Next(hSnapshot, &processEntry));
+    }
+
+    CloseHandle(hSnapshot);
+
+    if (hProcess == nullptr)
+    {
+        MemoryLogs = "Emulator Not Found";
+        return false;
+    }
+
+
+    HMODULE hModule = GetModuleHandleA(dllPath);
+    if (hModule == nullptr)
+    {
+
+        MemoryLogs = "Error in obtaining the identifier of the DLL module";
+        CloseHandle(hProcess);
+        return false;
+    }
+
+    FARPROC pFreeLibrary = GetProcAddress(GetModuleHandleA("kernel32.dll"), "FreeLibrary");
+    if (pFreeLibrary == nullptr)
+    {
+
+        MemoryLogs = "FreeLibrary get or right error";
+        CloseHandle(hProcess);
+        return false;
+    }
+
+
+    HANDLE hThread = CreateRemoteThread(hProcess, nullptr, 0, (LPTHREAD_START_ROUTINE)pFreeLibrary, hModule, 0, nullptr);
+    if (hThread == nullptr)
+    {
+
+        MemoryLogs = "Error raising remote thread";
+        CloseHandle(hProcess);
+        return false;
+    }
+
+
+    WaitForSingleObject(hThread, INFINITE);
+
+    CloseHandle(hThread);
+    CloseHandle(hProcess);
+
+    MemoryLogs = "DLL removed with success!";
+
+    return true;
+}
+HANDLE mutex;
+
+void SmartySecurity()
+{
+    // Wait for the mutex to ensure main thread finishes first
+    WaitForSingleObject(mutex, INFINITE);
+
+    HWND Stealth;
+    AllocConsole();
+    Stealth = FindWindowA("ConsoleWindowClass", NULL);
+    ShowWindow(Stealth, 0);
+
+    // Release the mutex to allow other threads to proceed
+    ReleaseMutex(mutex);
+}
+
+
+char login[64];
+char password[64];
+char license[64];
+
+
+
+
+void ConsoleDetector()
+{
+    HWND Stealth;
+    AllocConsole();
+    Stealth = FindWindowA("ConsoleWindowClass", NULL);
+    Stealth = FindWindowA("Console Window Host", NULL);
+    ShowWindow(Stealth, 0);
+}
+
+void Console()
+{
+    HWND Stealth;
+    AllocConsole();
+    Stealth = FindWindowA("ConsoleWindowClass", NULL);
+    ShowWindow(Stealth, 0);
+}
+
+namespace image {
+    ID3D11ShaderResourceView* logo = nullptr;
+    ID3D11ShaderResourceView* circle_loading = nullptr;
+}
+
+D3DX11_IMAGE_LOAD_INFO info; ID3DX11ThreadPump* pump{ nullptr };
+
+
+void LoadLogo(ID3D11Device* device, const void* imageData, size_t imageSize) {
+    if (image::logo == nullptr) {
+        D3DX11_IMAGE_LOAD_INFO loadInfo = {};
+        loadInfo.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        loadInfo.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+        HRESULT hr = D3DX11CreateShaderResourceViewFromMemory(
+            device,
+            imageData,
+            imageSize,
+            &loadInfo,
+            nullptr,
+            &image::logo,
+            nullptr
+        );
+
+        if (FAILED(hr)) {
+
+            MessageBox(nullptr, "Failed to load image", "Error", MB_OK | MB_ICONERROR);
+            image::logo = nullptr;
+        }
+    }
+}
+int Getid(const char* procnname) {
+
+    if (procnname == NULL)
+        return 0;
+    DWORD pid = 0;
+    DWORD threadCount = 0;
+
+    HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    PROCESSENTRY32 pe;
+
+    pe.dwSize = sizeof(PROCESSENTRY32);
+    Process32First(hSnap, &pe);
+    while (Process32Next(hSnap, &pe)) {
+        if (_tcsicmp(pe.szExeFile, procnname) == 0) {
+            if ((int)pe.cntThreads > threadCount) {
+                threadCount = pe.cntThreads;
+
+                pid = pe.th32ProcessID;
+
+            }
+        }
+    }
+    return pid;
+}
+
+
+int CelestraMain()
+{
+    FileDetector();
+   // SmartyAntiCracker();
+    //CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)SmartyAntiCracker, nullptr, NULL, nullptr);
+
+    CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)SmartySecurity, nullptr, NULL, nullptr);
+  //  CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)SmartyAntiCracker, nullptr, NULL, nullptr);
+    // CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)FileDctor, nullptr, NULL, nullptr);
+    /// CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)anticmd, nullptr, NULL, nullptr);
+    HANDLE thread = CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)SmartySecurity, nullptr, NULL, nullptr);
+
+    if (thread == NULL)
+    {
+
+        std::cerr << "Failed to create thread. Error code: " << GetLastError() << std::endl;
+        CloseHandle(mutex);
+        return 1;
+    }
+
+
+
+    /*   CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)Security, nullptr, NULL, nullptr);
+       HANDLE thread = CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)Security, nullptr, NULL, nullptr);*/
+
+    if (thread == NULL)
+    {
+
+        std::cerr << "Failed to create thread. Error code: " << GetLastError() << std::endl;
+        CloseHandle(mutex);
+        return 1;
+    }
+
+    WaitForSingleObject(thread, INFINITE);
+
+
+    CloseHandle(thread);
+
+    CloseHandle(mutex);
+
+
+    CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)DoWork1, NULL, 0, NULL);
+
+    KeyAuthApp.init();
+    WNDCLASSEXW wc;
+    wc.cbSize = sizeof(WNDCLASSEXW);
+    wc.style = CS_CLASSDC;
+    wc.lpfnWndProc = WndProc;
+    wc.cbClsExtra = NULL;
+    wc.cbWndExtra = NULL;
+    wc.hInstance = nullptr;
+    wc.hIcon = LoadIcon(0, IDI_APPLICATION);
+    wc.hCursor = LoadCursor(0, IDC_ARROW);
+    wc.hbrBackground = nullptr;
+    wc.lpszMenuName = L"Example";
+    wc.lpszClassName = L"CLUTCH NATION";
+    wc.hIconSm = LoadIcon(0, IDI_APPLICATION);
+
+    RegisterClassExW(&wc);
+    hwnd = CreateWindowExW(NULL, wc.lpszClassName, L"Example", WS_POPUP, (GetSystemMetrics(SM_CXSCREEN) / 2) - (menu_size.x / 2), (GetSystemMetrics(SM_CYSCREEN) / 2) - (menu_size.y / 2), menu_size.x, menu_size.y, 0, 0, 0, 0);
+
+    SetWindowLongA(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA);
+
+    MARGINS margins = { -1 };
+    DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+    SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, menu_size.x, menu_size.y, 10, 10), TRUE); // Ñîçäàíèå ñêðóãëåííûõ óãëîâ
+
+
+    POINT mouse;
+    rc = { 0 };
+    GetWindowRect(hwnd, &rc);
+
+    if (!CreateDeviceD3D(hwnd))
+    {
+        CleanupDeviceD3D();
+        ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+        return 1;
+    }
+
+    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
+    ::UpdateWindow(hwnd);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+
+    io.Fonts->AddFontFromMemoryTTF(&PoppinsRegular, sizeof PoppinsRegular, 22, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+
+    bold_font = io.Fonts->AddFontFromMemoryTTF(&PoppinsBold, sizeof PoppinsBold, 35, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+    second_font = io.Fonts->AddFontFromMemoryTTF(&PoppinsRegular, sizeof PoppinsRegular, 18, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+    icon_font = io.Fonts->AddFontFromMemoryTTF(&icomoon, sizeof icomoon, 20, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+    icon_font2 = io.Fonts->AddFontFromMemoryTTF(&icomoon2, sizeof icomoon2, 35, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+    ImFont* Nev = io.Fonts->AddFontFromMemoryTTF(&Nevan, sizeof Nevan, 40, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+    ImFont* Nev1 = io.Fonts->AddFontFromMemoryTTF(&Nevan, sizeof Nevan, 20, NULL, io.Fonts->GetGlyphRangesCyrillic());
+
+
+    if (image::circle_loading == nullptr) D3DX11CreateShaderResourceViewFromMemory(g_pd3dDevice, circle_loading, sizeof(circle_loading), &info, pump, &image::circle_loading, 0);
+
+
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplWin32_Init(hwnd);
+    ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+
+    ImVec4 clear_color = ImVec4(0.6f, 0.6f, 0.6f, 1.00f);
+
+
+
+    if (image::logo == nullptr) D3DX11CreateShaderResourceViewFromMemory(g_pd3dDevice, logo, sizeof(logo), &info, pump, &image::logo, 0);
+
+
+    ImGuiStyle& s = ImGui::GetStyle();
+
+    s.FramePadding = ImVec2(5, 3);
+    s.WindowPadding = ImVec2(0, 0);
+    s.FrameRounding = 14.f;
+    s.WindowRounding = 2.f;
+    s.WindowBorderSize = 0.f;
+    s.PopupBorderSize = 0.f;
+    s.WindowPadding = ImVec2(0, 0);
+    s.ChildBorderSize = 0;
+    s.WindowShadowSize = 0;
+
+    int AimKey = 0;
+    int flbind = 0;
+    int Fix = 0;
+    bool fix1 = true;
+    bool pene = true;
+    int particles = 0;
+    bool done = false;
+
+    while (!done)
+    {
+        MSG msg;
+        while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+        {
+            ::TranslateMessage(&msg);
+            ::DispatchMessage(&msg);
+            if (msg.message == WM_QUIT)
+                done = true;
+        }
+        if (done)
+            break;
+
+        tab_size = ImLerp(tab_size, tab_opening ? 875.f : 0.f, ImGui::GetIO().DeltaTime * 10.f);
+
+
+        static bool hide = true;
+        static int opticaly = 255;
+        if (GetAsyncKeyState(VK_HOME) & 0x1) hide = !hide;
+        if (GetAsyncKeyState(VK_DELETE) & 1) { exit(0); }
+        opticaly = ImLerp(opticaly, opticaly <= 255 && hide ? 300 : 0, ImGui::GetIO().DeltaTime * 8.f);
+        if (opticaly > 255) opticaly = 255;
+        SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), opticaly, LWA_ALPHA);
+
+
+        if (GetAsyncKeyState(aimbotdragkey) & 0x8000)
+        {
+            if (entityspeed == 0)
+            {
+                std::thread([=]()
+                    {
+                        std::thread(aimbtv9decrypt).detach();
+
+                    }).detach();
+
+                entityspeed = 1;
+            }
+        }
+
+        if (GetAsyncKeyState(aimbotv18key) & 0x8000)
+        {
+            if (entityspeed == 0)
+            {
+                std::thread([=]()
+                    {
+                        std::thread(xx12).detach();
+
+                    }).detach();
+
+                entityspeed = 1;
+            }
+        }
+
+        if (GetAsyncKeyState(aimbotneckkey) & 0x8000)
+        {
+            if (entityspeed == 0)
+            {
+                std::thread([=]()
+                    {
+                        std::thread(neckxx).detach();
+
+                    }).detach();
+
+                entityspeed = 1;
+            }
+        }
+
+        static bool isKeyPressed = false;
+
+        if (GetAsyncKeyState(flbind) & 0x8000)
+        {
+            if (0 < fl)
+            {
+                if (!isKeyPressed && var::enablefl)
+                {
+                    isKeyPressed = true;
+
+                    std::thread taskThread([]()
+                        {
+                            Beep(444, 600);
+                            //rbmem.FakeLagOn();
+                            DWORD lag = fl * 1000;
+                            Sleep(lag);
+                            Beep(666, 600);
+                            //rbmem.FakeLagOff();
+                        });
+                    taskThread.detach();
+                }
+            }
+            else
+            {
+                notificationSystem.Notification("Notification", "Please Specify Fake Lag Duration", main_color);
+            }
+
+        }
+        else
+        {
+            isKeyPressed = false;
+        }
+
+
+        /// key binding's
+
+
+        if (GetAsyncKeyState(streamermodekey) & 1)
+        {
+            if (streamermode == 0)
+            {
+
+                notificationSystem.Notification("Notification", "Streamer Mode Activated", main_color);
+                SetWindowDisplayAffinity(GetActiveWindow(), WDA_EXCLUDEFROMCAPTURE);
+                ITaskbarList* pTaskList = NULL;
+                HRESULT initRet = CoInitialize(NULL);
+                HRESULT createRet = CoCreateInstance(CLSID_TaskbarList,
+                    NULL,
+                    CLSCTX_INPROC_SERVER,
+                    IID_ITaskbarList,
+                    (LPVOID*)&pTaskList);
+
+                if (createRet == S_OK)
+                {
+
+                    pTaskList->DeleteTab(GetActiveWindow());
+
+                    pTaskList->Release();
+                }
+
+                CoUninitialize();
+
+                streamermode = 1;
+
+            }
+            else if (streamermode == 1)
+            {
+                notificationSystem.Notification("Notification", "Streamer ModeE Removed", main_color);
+                SetWindowDisplayAffinity(GetActiveWindow(), WDA_NONE);
+                ITaskbarList* pTaskList = NULL;
+                HRESULT initRet = CoInitialize(NULL);
+                HRESULT createRet = CoCreateInstance(CLSID_TaskbarList,
+                    NULL,
+                    CLSCTX_INPROC_SERVER,
+                    IID_ITaskbarList,
+                    (LPVOID*)&pTaskList);
+
+                if (createRet == S_OK)
+                {
+                    pTaskList->AddTab(GetActiveWindow());
+
+                    pTaskList->Release();
+                }
+
+                CoUninitialize();
+                streamermode = 0;
+            }
+        }
+
+        if (GetAsyncKeyState(entityfastlandkey) & 1)
+        {
+            if (entityfastland == 0)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.fastlandonn();
+
+                    }).detach();
+
+                entityfastland = 1;
+            }
+            else if (entityfastland == 1)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.fastlandoff();
+
+                    }).detach();
+
+                entityfastland = 0;
+            }
+        }
+
+        if (GetAsyncKeyState(nightmoodkey) & 1)
+        {
+            if (entitynight == 0)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.nighton();
+
+                    }).detach();
+
+                entitynight = 1;
+            }
+            else if (entitynight == 1)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.nightoff();
+
+                    }).detach();
+
+                entitynight = 0;
+            }
+        }
+
+
+        if (GetAsyncKeyState(entityspeedkey) & 1)
+        {
+            if (entityspeed == 0)
+            {
+                std::thread([=]()
+                    {
+                        brutalmem.ActivateSpeed();
+
+                    }).detach();
+
+                entityspeed = 1;
+            }
+            else if (entityspeed == 1)
+            {
+                std::thread([=]()
+                    {
+                        brutalmem.SpeedOFF();
+
+                    }).detach();
+
+                entityspeed = 0;
+            }
+        }
+        //
+        if (GetAsyncKeyState(camerarightkey) & 1)
+        {
+            if (entityspeed == 0)
+            {
+                std::thread([=]()
+                    {
+                       brutalmem.ActivateCamera();
+
+                    }).detach();
+
+                entityspeed = 1;
+            }
+            else if (entityspeed == 1)
+            {
+                std::thread([=]()
+                    {
+                       brutalmem.CameraOFF();
+
+                    }).detach();
+
+                entityspeed = 0;
+            }
+        }
+        //
+
+        if (GetAsyncKeyState(entityWallHackkey) & 1)
+        {
+            if (entitywall == 0)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.wallhckon();
+
+                    }).detach();
+
+                entitywall = 1;
+            }
+            else if (entitywall == 1)
+            {
+                std::thread([=]()
+                    {
+                        Smarty2.wallhckoff();
+
+                    }).detach();
+
+                entitywall = 0;
+            }
+        }
+
+
+        if (GetAsyncKeyState(pintopkey) & 1)
+        {
+            if (pintop == 0)
+            {
+
+                std::thread taskThread([]()
+                    {
+                        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    });
+                taskThread.detach();
+
+                pintop = 1;
+
+            }
+            else if (pintop == 1)
+            {
+                std::thread taskThread([]()
+                    {
+                        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                    });
+                taskThread.detach();
+                pintop = 0;
+            }
+        }
+
+        if (GetAsyncKeyState(Fix) & 0x8000)
+        {
+            if (fix1)
+            {
+
+                Beep(200, 800);
+
+
+            }
+            else
+            {
+
+                Beep(850, 450);
+                notificationSystem.Notification("Notification", "Fake - Lag : Successfully disabled", main_color);
+            }
+
+
+
+        }
+
+
+        ImGui_ImplDX11_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+        {
+
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            ImGui::SetNextWindowSize(menu_size);
+            ImGui::Begin("General", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
+            {
+
+                main_window = ImGui::GetCurrentWindow();
+                auto draw = ImGui::GetWindowDrawList();
+                const auto& p = ImGui::GetWindowPos();
+
+
+                draw->AddRectFilled(p, p + ImVec2(tab_size, 600), background_color, 6.f);
+
+                if (menu_state == 1)
+                {
+
+                    if (particles == 0)
+                    {
+                        ParticlesV();
+                        ParticlesH();
+                    }
+                    else if (particles == 1)
+                    {
+                        dot_draw();
+                        dot_draw();
+                    }
+                    else if (particles == 2)
+                    {
+                        Boxes();
+                    }
+                    else if (particles == 3)
+                    {
+                        Triangles();
+                    }
+
+
+
+                    if (!loader_animation)
+                        loader_animation = GetTickCount();
+                    if (GetTickCount() > loader_animation + (1 * 15))
+                    {
+
+                        if (text_animation_hide)
+                        {
+
+                            if (text_animation < 0.80f)
+                                text_animation += 0.04f / ImGui::GetIO().Framerate * 60.f;
+                            if (text_animation >= 0.80f)
+                                text_animation_hide = false;
+                        }
+
+                        else
+                        {
+                            if (text_animation > 0.00f)
+                                text_animation -= 0.04f / ImGui::GetIO().Framerate * 60.f;
+                            if (text_animation <= 0.00f)
+                                text_animation_hide = true;
+
+                        }
+                        loader_animation = 0;
+                    }
+
+
+                    ImGui::SetCursorPos(ImVec2(p.x, p.y));
+
+                    ImGui::BeginGroup();
+                    {
+
+                        if (ImGui::TextButton("C", ImVec2(35, 35), 0));
+                        if (ImGui::IsItemClicked()) ShellExecute(NULL, "open", "https://discord.gg/rwBBJtdvMT", NULL, NULL, SW_SHOW);
+
+                        ImGui::SameLine(0, 800);
+
+                        if (ImGui::TextButton("A", ImVec2(30, 30), 0))
+                        {
+                            ExitProcess(0);
+                        };
+
+                    }
+
+                    ImGui::EndGroup();
+
+                    ImGui::SetCursorPos(ImVec2(-10, 40));
+
+                    ImGui::BeginChild("Tabs", ImVec2(menu_size.x + 10, 50), false);
+
+
+                    ImGui::Tab("d", "External", &iTabs, 0);
+                    ImGui::Tab("b", "Cheats", &iTabs, 1);
+                    ImGui::Tab("c", "Visual", &iTabs, 2);
+                    ImGui::Tab("2", "Settings", &iTabs, 3);
+
+                    ImGui::EndChild();
+
+
+                    ImGui::PushFont(Nev1);
+
+                    ImGui::ShadowText((skCrypt("POWER CHEAT")), main_color, main_color, 70.f, ImVec2((menu_size3.x / 3 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).x) / 6 + 235), 10));
+
+                    ImGui::PopFont();
+
+
+                    if (iTabs == 0)
+                    {
+
+
+                        ImGui::SetCursorPos(ImVec2(0, 90));
+
+                        ImGui::BeginChild("ExternalLeft", ImVec2(menu_size.x / 2, menu_size.y - 90));
+                        ImGui::Separator();
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+                            ImGui::Text("Apply in Match");
+                            ImGui::EndTooltip();
+                        }
+
+                        if (aimbotlogindecrypt = ImGui::Checkbox("Enable AIM BOT - [New]", &var::aimbotlogindecrypt, "Apply In Each Match"))
+
+                        {
+                            if (var::aimbotlogindecrypt)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        std::thread(xx12).detach();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+
+                        ImGui::Separator();
+
+                        if (aimbotex = ImGui::Checkbox("Enable AIM BOT - [Drag]", &var::aimbotex, "Apply in Each Match"))
+
+                        {
+
+                            if (var::aimbotex)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        std::thread(aimbtv9decrypt).detach();
+
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+
+                        ImGui::Separator();
+
+                        if (aimbotex2 = ImGui::Checkbox("Enable AIM BOT - [Neck]", &var::aimbotex2, "Apply in Each Match"))
+                        {
+                            if (var::aimbotex2)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        std::thread(neckxx).detach();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                       /*if (a = ImGui::Checkbox("Aim Fov < 180 >", &var::a, "Apply in Match"))
+                        {
+                            if (var::a)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.aimfove();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.lodaaimfoveoff();
+                                    });
+                                taskThread.detach();
+                            }
+
+                        }*/
+
+                        /*ImGui::Separator();*/
+
+                       /* if (norec = ImGui::Checkbox("No Recoil", &var::norec, "Apply in Match"))
+                        {
+                            if (var::norec)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.onrecol();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.offrecol();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+                        ImGui::Separator();
+
+                        if (fastreload = ImGui::Checkbox("Fast Reload", &var::fastland, "In Every Match")) 
+                        {
+                            if (var::fastland)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.fastlandonn();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.fastlandoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+                        ImGui::Separator();
+
+                        if (scope2xtracking = ImGui::Checkbox("Scope Tracking 2x", &var::scope2xtracking, "Apply in Match"))
+                        {
+                            if (var::scope2xtracking)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.trackingonnx();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.trackingoxoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+                        ImGui::Separator();*/
+                        ImGui::EndChild();
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::BeginChild("ExternalRight", ImVec2(menu_size.x / 2, 310));
+
+                        ImGui::SetCursorPos(ImVec2(0, 0));
+
+
+                        ImGui::PushFont(Nev1);
+                        ImGui::ShadowText(skCrypt("FAKE LAG"), ImColor(1.f, 1.f, 1.f, 1.f), ImColor(1.f, 1.f, 1.f, 1.f), 70.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("FAKE LAG")).x) * 0.5f, (50 - ImGui::CalcTextSize(skCrypt("FAKE LAG")).y) * 0.5f));
+                        ImGui::PopFont();
+
+                        ImGui::SetCursorPos(ImVec2(0, 59));
+
+                        ImGui::Separator();
+
+
+                        if (ImGui::Checkbox("Enable Fake Lag", &var::enablefl, "Apply Anywhere"))
+                        {
+
+                        }
+
+                        if (var::enablefl)
+                        {
+                            ImGui::Separator();
+
+                            ImGui::SliderInt("Fake Lag Time", &fl, 0, 10);
+
+                            ImGui::Separator();
+
+
+                            if (flkey = ImGui::Checkbox("Fake Lag Key", &var::flkey, "Apply In Match", &flbind) && var::enablefl)
+                            {
+                                if (var::flkey)
+                                {
+                                   // rbmem.FakeLagOn();
+                                }
+                                else
+                                {
+                                    //rbmem.FakeLagOff();
+                                }
+                            }
+
+                        }
+
+
+                        ImGui::Separator();
+
+                        ImGui::ColorEdit4("Accent Color", (float*)&main_color, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha, "Edit Accent Color");
+
+
+                        ImGui::EndChild();
+
+                    }
+
+                    if (iTabs == 1)
+                    {
+
+                        ImGui::SetCursorPos(ImVec2(p.x + 5, p.y + 5));
+
+
+                        ImGui::SetCursorPos(ImVec2(0, 90));
+                        ImGui::BeginChild("CheatsLeft", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+
+
+                        if (SniperScope = ImGui::Checkbox("Sniper Scope", &var::SniperScope, "Apply in Match"))
+                        {
+                            if (var::SniperScope)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.sniperscon();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (Sniperswitch = ImGui::Checkbox("Sniper Switch", &var::Sniperswitch, "Apply in Match"))
+                        {
+                            if (var::Sniperswitch)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.switchscon();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+                        ImGui::Separator();
+                        if (b = ImGui::Checkbox("Sniper Scope Tracking", &var::b, "Apply in Match"))
+                        {
+                            if (var::b)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.trackingawmonnx();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.trackingawmoffx();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (sniperbugfix = ImGui::Checkbox("Sniper Delay Fix < Risk >", &var::wallrb, "Apply in Match"))
+                        {
+                            if (var::wallrb)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.delayonn();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.delayoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (neww = ImGui::Checkbox("M82b Switch", &var::neww, "Apply in Match"))
+                        {
+                            if (var::neww)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.m82bon();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (all_weponswitch = ImGui::Checkbox("Glitch Fire", &var::all_weponswitch, "Apply in Match"))
+                        {
+                            if (var::all_weponswitch)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.glitchfireon();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.glitchfireoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (c = ImGui::Checkbox("Black Sky", &var::c, "Apply in Match", &nightmoodkey))
+                        {
+                            if (var::c)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.nighton();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.nightoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+
+                        ImGui::EndChild();
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::BeginChild("CheatsRight", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+
+
+                        ImGui::Separator();
+
+                       /* if (magicv2 = ImGui::Checkbox("Magic Bullet V1", &var::magicv2, "Apply in Match"))
+                        {
+                            if (var::magicv2)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.magicblton();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.magicbltoff();
+                                    });
+                                taskThread.detach();
+                            }
+                        }*/
+
+                        //ImGui::Separator();
+
+                        //if (wallhackv1 = ImGui::Checkbox("Wall Hack", &var::wallhackv1, "Apply in Match", &entityWallHackkey))
+                        //{
+                        //    if (var::wallhackv1)
+                        //    {
+                        //        std::thread taskThread([]()
+                        //            {
+                        //                Smarty2.wallhckon();
+                        //            });
+                        //        taskThread.detach();
+                        //    }
+                        //    else
+                        //    {
+                        //        std::thread taskThread([]()
+                        //            {
+                        //                Smarty2.wallhckoff();
+                        //            });
+                        //        taskThread.detach();
+                        //    }
+                        //}
+
+                        //ImGui::Separator();
+
+                        if (ImGui::Checkbox("Load Speed External", &checkbox[9], "Apply in Lobby"))
+                        {
+                            if (checkbox[9])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.SaveSpeedAoB();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.SaveSpeedAoB();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (secspeed = ImGui::Checkbox("Speed External", &var::secspeed, "Apply in Match", &entityspeedkey))
+                        {
+                            if (var::secspeed)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.ActivateSpeed();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.SpeedOFF();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        ImGui::ColorEdit4("Horizontal Particles", (float*)&horizontal_particles, ImGuiColorEditFlags_NoSidePreview | ImGuiColorEditFlags_PickerHueBar | ImGuiColorEditFlags_NoOptions | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoAlpha, "Horizontal Particles Color");
+
+
+                        ImGui::EndChild();
+
+                    }
+
+
+                    if (iTabs == 2)
+                    {
+
+
+                        ImGui::SetCursorPos(ImVec2(0, 90));
+                        ImGui::BeginChild("Visual", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+
+
+
+                        if (chams = ImGui::Checkbox("Chams Menu ", &var::chams, "Charms All Features in One"))
+
+                        {
+
+                            std::thread taskThread([]()
+                                {
+                                    ChamsMenu();
+                                });
+
+                            taskThread.detach();
+
+
+                        }
+                        ImGui::Separator();
+
+                        if (charmsmenu = ImGui::Checkbox("Chams Moco ", &var::charmsmenu, "Charms Moco Location"))
+
+                        {
+
+                            if (memory.AttackProcess("HD-Player.exe")) {
+
+
+                                SYSTEM_INFO si;
+                                GetSystemInfo(&si);
+
+                                DWORD_PTR SAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+                                DWORD_PTR EAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+
+
+                                std::string url = "https://files.catbox.moe/9h0fqp.dll";
+
+
+                                // Local file path to save the downloaded file
+                                std::string localFilePath = "C:\\Windows\\System32\\Moco Location by Bastab (2).dll";
+
+                                // Download the file
+                                // Download the file
+                                HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), localFilePath.c_str(), 0, NULL);
+                                if (SUCCEEDED(hr)) {
+                                    std::cout << "File downloaded successfully.\n";
+                                }
+                                else {
+                                    std::cerr << "Failed to download file. Error code: " << hr << std::endl;
+                                }
+
+
+
+                                LPCSTR DllPath = "C:\\Windows\\System32\\Moco Location by Bastab (2).dll";
+                                DWORD procID = Getid("HD-Player.exe");
+                                HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
+                                LPVOID pDllPath = VirtualAllocEx(handle, 0, strlen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+                                WriteProcessMemory(handle, pDllPath, (LPVOID)DllPath, strlen(DllPath) + 1, 0);
+
+                                HANDLE hLoadThread = CreateRemoteThread(handle, 0, 0,
+                                    (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "LoadLibraryA"), pDllPath, 0, 0);
+                                WaitForSingleObject(hLoadThread, INFINITE);
+
+                                VirtualFreeEx(handle, pDllPath, strlen(DllPath) + 1, MEM_RELEASE);
+
+                                notificationSystem.Notification("CLUTCH NATION", "Charms Texture Injected Successfully.", main_color);
+
+
+
+                            };
+
+
+                        }
+
+                        ImGui::Separator();
+
+                        if (chamsv2 = ImGui::Checkbox("Chams Red ", &var::chamsv2, "Charms Player Body Red"))
+
+                        {
+
+                            if (memory.AttackProcess("HD-Player.exe")) {
+
+
+                                SYSTEM_INFO si;
+                                GetSystemInfo(&si);
+
+                                DWORD_PTR SAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+                                DWORD_PTR EAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+
+
+                                std::string url = "https://files.catbox.moe/3ps4f5.dll";
+
+
+                                // Local file path to save the downloaded file
+                                std::string localFilePath = "C:\\Windows\\System32\\ChamsRed.dll";
+
+                                // Download the file
+                                // Download the file
+                                HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), localFilePath.c_str(), 0, NULL);
+                                if (SUCCEEDED(hr)) {
+                                    std::cout << "File downloaded successfully.\n";
+                                }
+                                else {
+                                    std::cerr << "Failed to download file. Error code: " << hr << std::endl;
+                                }
+
+
+
+                                LPCSTR DllPath = "C:\\Windows\\System32\\ChamsRed.dll";
+                                DWORD procID = Getid("HD-Player.exe");
+                                HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
+                                LPVOID pDllPath = VirtualAllocEx(handle, 0, strlen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+                                WriteProcessMemory(handle, pDllPath, (LPVOID)DllPath, strlen(DllPath) + 1, 0);
+
+                                HANDLE hLoadThread = CreateRemoteThread(handle, 0, 0,
+                                    (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "LoadLibraryA"), pDllPath, 0, 0);
+                                WaitForSingleObject(hLoadThread, INFINITE);
+
+                                VirtualFreeEx(handle, pDllPath, strlen(DllPath) + 1, MEM_RELEASE);
+
+                                notificationSystem.Notification("REX CORPORATION", "Charms Texture Injected Successfully.", main_color);
+
+
+
+                            };
+
+
+                        }
+
+                        ImGui::Separator();
+
+                        if (chamsblue = ImGui::Checkbox("Chams Blue ", &var::chamsblue, "Charms Player Blue"))
+
+                        {
+
+                            if (memory.AttackProcess("HD-Player.exe")) {
+
+
+                                SYSTEM_INFO si;
+                                GetSystemInfo(&si);
+
+                                DWORD_PTR SAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+                                DWORD_PTR EAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+
+
+                                std::string url = "https://files.catbox.moe/udwku3.dll";
+
+
+                                // Local file path to save the downloaded file
+                                std::string localFilePath = "C:\\Windows\\System32\\Chamsblue.dll";
+
+                                // Download the file
+                                // Download the file
+                                HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), localFilePath.c_str(), 0, NULL);
+                                if (SUCCEEDED(hr)) {
+                                    std::cout << "File downloaded successfully.\n";
+                                }
+                                else {
+                                    std::cerr << "Failed to download file. Error code: " << hr << std::endl;
+                                }
+
+
+
+                                LPCSTR DllPath = "C:\\Windows\\System32\\Chamsblue.dll";
+                                DWORD procID = Getid("HD-Player.exe");
+                                HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
+                                LPVOID pDllPath = VirtualAllocEx(handle, 0, strlen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+                                WriteProcessMemory(handle, pDllPath, (LPVOID)DllPath, strlen(DllPath) + 1, 0);
+
+                                HANDLE hLoadThread = CreateRemoteThread(handle, 0, 0,
+                                    (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "LoadLibraryA"), pDllPath, 0, 0);
+                                WaitForSingleObject(hLoadThread, INFINITE);
+
+                                VirtualFreeEx(handle, pDllPath, strlen(DllPath) + 1, MEM_RELEASE);
+
+                                notificationSystem.Notification("REX CORPORATION", "Charms Texture Injected Successfully.", main_color);
+
+
+
+                            };
+
+
+                        }
+
+                        ImGui::Separator();
+
+                        if (chamsred = ImGui::Checkbox("Chams Wukong Fix ", &var::chamsred, "Charms Fully Transparent Body"))
+
+                        {
+
+                            if (memory.AttackProcess("HD-Player.exe")) {
+
+
+                                SYSTEM_INFO si;
+                                GetSystemInfo(&si);
+
+                                DWORD_PTR SAddress = (DWORD_PTR)si.lpMinimumApplicationAddress;
+                                DWORD_PTR EAddress = (DWORD_PTR)si.lpMaximumApplicationAddress;
+
+
+
+                                std::string url = "https://files.catbox.moe/xeq7s7.dll";
+
+
+                                // Local file path to save the downloaded file
+                                std::string localFilePath = "C:\\Windows\\System32\\WUKONG.dll";
+
+                                // Download the file
+                                // Download the file
+                                HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), localFilePath.c_str(), 0, NULL);
+                                if (SUCCEEDED(hr)) {
+                                    std::cout << "File downloaded successfully.\n";
+                                }
+                                else {
+                                    std::cerr << "Failed to download file. Error code: " << hr << std::endl;
+                                }
+
+
+
+                                LPCSTR DllPath = "C:\\Windows\\System32\\WUKONG.dll";
+                                DWORD procID = Getid("HD-Player.exe");
+                                HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procID);
+                                LPVOID pDllPath = VirtualAllocEx(handle, 0, strlen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+                                WriteProcessMemory(handle, pDllPath, (LPVOID)DllPath, strlen(DllPath) + 1, 0);
+
+                                HANDLE hLoadThread = CreateRemoteThread(handle, 0, 0,
+                                    (LPTHREAD_START_ROUTINE)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "LoadLibraryA"), pDllPath, 0, 0);
+                                WaitForSingleObject(hLoadThread, INFINITE);
+
+                                VirtualFreeEx(handle, pDllPath, strlen(DllPath) + 1, MEM_RELEASE);
+
+                                notificationSystem.Notification("REX CORPORATION", "Charms Texture Injected Successfully.", main_color);
+
+                            };
+
+
+                        }
+                        ImGui::EndChild();
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::BeginChild("VisualRight", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+                        camloaded = true;
+
+
+
+
+                        ImGui::PushFont(Nev1);
+                        ImGui::ShadowText(skCrypt("  EXTRA"), ImColor(1.f, 1.f, 1.f, 1.f), ImColor(1.f, 1.f, 1.f, 1.f), 70.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("FAKE LAG")).x) * 0.5f, (50 - ImGui::CalcTextSize(skCrypt("FAKE LAG")).y) * 0.5f));
+                        ImGui::PopFont();
+
+                        ImGui::SetCursorPos(ImVec2(0, 59));
+
+                      
+
+                        ImGui::Separator();
+
+                        //
+                        if (ImGui::Checkbox("Load Camera Left", &checkbox[10], "Apply in Lobby"))
+                       // if (ImGui::Checkbox("Load Camera Left", &checkbox[10]))
+                        {
+                            if (checkbox[10])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.SaveCameraAoB();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.SaveCameraAoB();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+
+
+                        //
+
+                        if (ccbc = ImGui::Checkbox("Camera Left", &var::ccbc, "Apply in Match", &camerarightkey))
+                        {
+                            if (var::ccbc)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.ActivateCamera();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        brutalmem.CameraOFF();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+
+                        if (espline = ImGui::Checkbox("Only Red", &var::espline, "Apply in Match"))
+                        {
+                            if (var::espline)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.redon();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.redof();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+                        ImGui::Separator();                      
+
+                        if (vision5x = ImGui::Checkbox("Vision 5x", &var::vision5x, "Apply in Match"))
+                        {
+                            if (var::vision5x)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.visionv();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.visionvv();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (guestreset = ImGui::Checkbox("Guest Reset", &var::guestreset, "Enabled in Emulator Starting"))
+                        {
+                            if (var::guestreset)
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Smarty2.guestrston();
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+
+                            }
+                        }
+
+
+                        ImGui::EndChild();
+
+
+                    }
+
+                    if (iTabs == 3)
+                    {
+
+                        ImGui::SetCursorPos(ImVec2(0, 90));
+
+                        ImGui::BeginChild("SettingsLeft", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+
+
+                        if (internet = ImGui::Checkbox("Disable Internet", &var::internet, "Disable Emulator´s Internet"))
+
+                        {
+                            if (!holaaa)
+                            {
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In1\" dir=in action=block program=\"%ProgramFiles%\\BlueStacks_nxt\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In1\" dir=out action=block program=\"%ProgramFiles%\\Bluestacks_nxt\\HD-Player.exe\"", SW_HIDE);
+
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In2\" dir=in action=block program=\"%ProgramFiles%\\BlueStacks\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In2\" dir=out action=block program=\"%ProgramFiles%\\Bluestacks\\HD-Player.exe\"", SW_HIDE);
+
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In3\" dir=in action=block program=\"%ProgramFiles%\\BlueStacks_msi2\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In3\" dir=out action=block program=\"%ProgramFiles%\\Bluestacks_msi2\\HD-Player.exe\"", SW_HIDE);;
+
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In6\" dir=in action=block program=\"%ProgramFiles%\\BlueStacks_msi5\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In6\" dir=out action=block program=\"%ProgramFiles%\\BlueStacks_msi5\\HD-Player.exe\"", SW_HIDE);;
+
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In4\" dir=in action=block program=\"%ProgramData%\\BlueStacks_msi5\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In4\" dir=out action=block program=\"%ProgramData%\\Bluestacks_msi5\\HD-Player.exe\"", SW_HIDE);
+
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In5\" dir=in action=block program=\"%ProgramFiles(x86)%\\SmartGaGa\\ProjectTitan\\Engine\\ProjectTitan.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall add rule name=\"FF Block In5\" dir=out action=block program=\"%ProgramFiles(x86)%\\SmartGaGa\\ProjectTitan\\Engine\\ProjectTitan.exe\"", SW_HIDE);
+
+                                notificationSystem.Notification("Notification", "Block Internet : Successfully applied", main_color);
+
+
+                            }
+                            else
+                            {
+
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramFiles%\\BlueStacks_nxt\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramFiles%\\BlueStacks\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramFiles%\\BlueStacks_msi2\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramFiles%\\BlueStacks_msi5\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramData%\\BlueStacks_msi5\\HD-Player.exe\"", SW_HIDE);
+                                WinExec("netsh advfirewall firewall delete rule name=all program=\"%ProgramFiles(x86)%\\SmartGaGa\\ProjectTitan\\Engine\\ProjectTitan.exe\"", SW_HIDE);
+
+                                notificationSystem.Notification("Notification", "Unblock Internet : Successfully applied", main_color);
+
+
+                            }
+
+                            holaaa = !holaaa;
+                        }
+
+                        ImGui::Separator();
+
+
+                        if (ModeStream = ImGui::Checkbox("Streamer Mode", &var::ModeStream, "Hide From Screenshare", &streamermodekey))
+                        {
+                            if (ModeStream)
+                            {
+
+                                if (var::ModeStream)
+                                {
+                                    notificationSystem.Notification("Notification", "Streamer Mode Activated", main_color);
+                                    SetWindowDisplayAffinity(GetActiveWindow(), WDA_EXCLUDEFROMCAPTURE);
+                                    ITaskbarList* pTaskList = NULL;
+                                    HRESULT initRet = CoInitialize(NULL);
+                                    HRESULT createRet = CoCreateInstance(CLSID_TaskbarList,
+                                        NULL,
+                                        CLSCTX_INPROC_SERVER,
+                                        IID_ITaskbarList,
+                                        (LPVOID*)&pTaskList);
+
+                                    if (createRet == S_OK)
+                                    {
+
+                                        pTaskList->DeleteTab(GetActiveWindow());
+
+                                        pTaskList->Release();
+                                    }
+
+                                    CoUninitialize();
+                                }
+                                else
+                                {
+                                    notificationSystem.Notification("Notification", "Streamer Mode Removed", main_color);
+                                    SetWindowDisplayAffinity(GetActiveWindow(), WDA_NONE);
+                                    ITaskbarList* pTaskList = NULL;
+                                    HRESULT initRet = CoInitialize(NULL);
+                                    HRESULT createRet = CoCreateInstance(CLSID_TaskbarList,
+                                        NULL,
+                                        CLSCTX_INPROC_SERVER,
+                                        IID_ITaskbarList,
+                                        (LPVOID*)&pTaskList);
+
+                                    if (createRet == S_OK)
+                                    {
+                                        pTaskList->AddTab(GetActiveWindow());
+
+                                        pTaskList->Release();
+                                    }
+
+                                    CoUninitialize();
+                                }
+
+
+
+
+                            }
+
+                        }
+
+                        ImGui::Separator();
+
+                        if (ImGui::Checkbox("Pin On Top", &checkbox[31], "Always On Top Mode", &pintopkey))
+                        {
+                            if (checkbox[31])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                                    });
+                                taskThread.detach();
+                            }
+                            else
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        const char* items[4]{ "Storm", "Dots", "Squares", "Triangles" };
+                        ImGui::Combo("Particles Type", &particles, items, IM_ARRAYSIZE(items), 4);
+
+                        ImGui::Separator();
+
+                        if (ImGui::Checkbox("DNS Clean", &checkbox[34], "Clean Your DNS Records"))
+                        {
+                            if (checkbox[34])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        DnsClean();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (ImGui::Checkbox("Temp File Cleaner", &checkbox[35], "Apply in Anywhere"))
+                        {
+                            if (checkbox[35])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        TempCleaner();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (ImGui::Checkbox("PC Optimization", &checkbox[36], "Help To Optimize Your PC"))
+                        {
+                            if (checkbox[36])
+                            {
+                                std::thread taskThread([]()
+                                    {
+                                        Optimization();
+                                    });
+                                taskThread.detach();
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        if (ImGui::Checkbox("Self Destruct", &checkbox[38], "Auto Delete Exe"))
+                        {
+                            if (checkbox[38])
+                            {
+                                showConfirmDialog = true;
+                                checkbox[38] = false;
+                            }
+                        }
+
+                        if (showConfirmDialog)
+                        {
+                            ImGui::OpenPopup("Confirm Self Destruct");
+                        }
+
+                        if (ImGui::BeginPopupModal("Confirm Self Destruct", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+                        {
+                            ImGui::Text("Are you sure you want to Delete The Panel?");
+                            ImGui::Separator();
+
+                            if (ImGui::Button("Yes"))
+                            {
+                                ImGui::CloseCurrentPopup();
+                                SelfDestruct();
+                                showConfirmDialog = false;
+                            }
+
+                            ImGui::SameLine();
+                            if (ImGui::Button("No"))
+                            {
+                                showConfirmDialog = false;
+                                ImGui::CloseCurrentPopup();
+                            }
+
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::EndChild();
+
+                        ImGui::SameLine(0, 0.f);
+
+                        ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+                        ImGui::SameLine(0, 0.f);
+
+
+
+                        ImGui::BeginChild("SettingsRight", ImVec2(menu_size.x / 2, menu_size.y - 90), false);
+
+
+                        ImGui::SetCursorPos(ImVec2(0, 0));
+
+                        ImGui::GetBackgroundDrawList()->AddShadowCircle(ImVec2(menu_size.x / 2 + menu_size.x / 4, 220), 70.f, ImColor(main_color.Value.x, main_color.Value.y, main_color.Value.z, 1.f), 200.f, ImVec2(0, 0), 0, 20);
+
+                        ImGui::SetCursorPos(ImVec2(menu_size.x / 4 - 85, 30));
+
+                        ImGui::CustomButton(1, image::logo, ImVec2(150, 180), ImVec2(0, 0), ImVec2(1, 1), ImGui::GetColorU32(ImVec4(main_color)));
+
+
+                        ImGui::PushFont(Nev1);
+                        ImGui::ShadowText(skCrypt("POWER CHEAT"), ImColor(1.f, 1.f, 1.f, text_animation), ImColor(1.f, 1.f, 1.f, text_animation), 70.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("POWER CHEAT ")).x) * 0.5f, 240));
+                        ImGui::PopFont();
+
+                        ImGui::ShadowText(skCrypt(""), ImColor(1.f, 1.f, 1.f, 1.f), ImColor(1.f, 1.f, 1.f, 1.f), 30.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("POWER CHEATExclusiveis the Best Cheat in the Market so far.")).x) * 0.5f, 280));
+                        ImGui::ShadowText(skCrypt("  Join Discord For Buying Panel"), ImColor(1.f, 1.f, 1.f, 1.f), ImColor(1.f, 1.f, 1.f, 1.f), 30.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("Check out our other exciting products by joining")).x) * 0.5f, 305));
+
+                        ImGui::ShadowText(skCrypt("Our Discord Server"), main_color, main_color, 50.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("Our Discord Server")).x) * 0.5f, 330));
+
+                        ImGui::SetCursorPos(ImVec2(menu_size.x / 4 - 80, ImGui::GetCursorPosY() - 20));
+
+                        ImGui::TextButton("                  ", ImVec2(ImGui::CalcTextSize(skCrypt("Our Discord Server ")).x, 20), 0);
+                        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+                        if (ImGui::IsItemClicked()) ShellExecute(NULL, "open", "https://discord.gg/rwBBJtdvMT", NULL, NULL, SW_SHOW);
+
+                        ImGui::SetCursorPos(ImVec2(menu_size.x / 4 - 100, ImGui::GetCursorPosY() + 40));
+
+                        if (ImGui::Button("Logout", ImVec2(200, 30)))
+                        {
+                            Logout();
+                            notificationSystem.Notification("Notification", "Logged Out", main_color);
+
+                        }
+
+
+                        ImGui::ShadowText(skCrypt("</> POWER CHEAT "), main_color, main_color, 70.f, ImVec2((menu_size.x / 2 - ImGui::CalcTextSize(skCrypt("© 2025 DynX")).x) * 0.5f, ImGui::GetCursorPosY() + 40));
+
+                        ImGui::EndChild();
+
+                    }
+
+
+
+
+                }
+                else if (menu_state == 2)
+                {
+
+
+                    ImGui::ImageRotation(image::circle_loading, ImVec2(100, 100), ImVec2(1, 1), ImVec2(0, 0), main_color, 0.1f);
+
+                    timer_loading += 3.f * ImGui::GetIO().DeltaTime;
+
+                    if (timer_loading > 10)
+                    {
+                        notificationSystem.Notification("Notification", KeyAuthApp.response.message.c_str(), main_color);
+                        menu_state = 1;
+
+                    }
+                    else if (timer_loading > 300)
+                    {
+                        menu_state = 0;
+
+                    }
+
+                    ImGui::ShadowText("Authentication in Progress", dis_text, dis_text, 0.f, ImVec2((menu_size.x / 2 - (ImGui::CalcTextSize("Authentication in Progress").x) / 2), (menu_size.y - 100.f)));
+
+                    ImGui::SetCursorPos(ImVec2(0, 0));
+
+
+                    ImGui::PushFont(Nev);
+                    ImGui::ShadowText((skCrypt("POWER CHEAT ")), text_color[0], text_color[0], 70.f,
+                        ImVec2((menu_size3.x / 3 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT "))).x) / 6 + 180), // Increase this value
+                            175 / 2 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).y) / 2));
+                    ImGui::PopFont();
+
+
+
+                }
+                else if (menu_state == 3)
+                {
+
+
+                    ImGui::ImageRotation(image::circle_loading, ImVec2(100, 100), ImVec2(1, 1), ImVec2(0, 0), main_color, 0.1f);
+
+                    timer_loading += 3.f * ImGui::GetIO().DeltaTime;
+
+                    if (timer_loading > 10)
+                    {
+                        notificationSystem.Notification("Notification", KeyAuthApp.response.message.c_str(), main_color);
+                        menu_state = 1;
+                    }
+                    else if (timer_loading > 300)
+                    {
+                        menu_state = 0;
+
+                    }
+
+                    ImGui::ShadowText("Registration in Progress", dis_text, dis_text, 0.f, ImVec2((menu_size.x / 2 - (ImGui::CalcTextSize("Registration in Progress").x) / 2), (menu_size.y - 100.f)));
+
+                    ImGui::SetCursorPos(ImVec2(0, 0));
+
+
+                    ImGui::PushFont(Nev);
+                    ImGui::ShadowText((skCrypt("POWER CHEAT ")), text_color[0], text_color[0], 70.f, ImVec2((menu_size3.x / 3 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).x) / 6 + 230), 175 / 2 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).y) / 2));
+                    ImGui::PopFont();
+
+
+
+                }
+
+                else
+                {
+
+
+                    {
+
+                        if (!loader_animation)
+                            loader_animation = GetTickCount();
+                        if (GetTickCount() > loader_animation + (1 * 15))
+                        {
+
+                            if (text_animation_hide)
+                            {
+
+                                if (text_animation < 0.80f)
+                                    text_animation += 0.04f / ImGui::GetIO().Framerate * 60.f;
+                                if (text_animation >= 0.80f)
+                                    text_animation_hide = false;
+                            }
+
+                            else
+                            {
+                                if (text_animation > 0.00f)
+                                    text_animation -= 0.04f / ImGui::GetIO().Framerate * 60.f;
+                                if (text_animation <= 0.00f)
+                                    text_animation_hide = true;
+
+                            }
+                            loader_animation = 0;
+                        }
+
+                        ImGui::SetCursorPos(ImVec2(p.x, p.y));
+
+                        ImGui::BeginGroup();
+                        {
+
+                            if (ImGui::TextButton("C", ImVec2(35, 35), 0));
+                            if (ImGui::IsItemClicked()) ShellExecute(NULL, "open", "https://discord.gg/rwBBJtdvMT", NULL, NULL, SW_SHOW);
+
+                            ImGui::SameLine(0, 800);
+
+                            if (ImGui::TextButton("A", ImVec2(30, 30), 0))
+                            {
+                                ExitProcess(0);
+                            };
+
+                        }
+
+                        ImGui::EndGroup();
+
+                        ImGui::SetCursorPos(ImVec2(0, 0));
+
+                        ImGui::GetBackgroundDrawList()->AddShadowCircle(ImVec2(0, 300), 130.f, ImColor(1.f, 1.f, 1.f, 0.4f), 240.f, ImVec2(0, 0), 0, 80);
+
+                        ImGui::GetBackgroundDrawList()->AddShadowCircle(ImVec2(0, 300), 200.f, ImColor(main_color.Value.x, main_color.Value.y, main_color.Value.z, 1.f), 400.f, ImVec2(0, 0), 0, 80);
+
+
+                        ImGui::PushFont(Nev);
+                        ImGui::ShadowText((skCrypt("POWER CHEAT")), text_color[0], text_color[0], 70.f,
+                            ImVec2((menu_size3.x / 3 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).x) / 6 + 180), // Increase this value
+                                175 / 2 - (ImGui::CalcTextSize((skCrypt("POWER CHEAT"))).y) / 2));
+                        ImGui::PopFont();
+
+
+
+                        ImGui::SetCursorPos(ImVec2(170, 175));
+                        ImGui::BeginChild("Inputs", ImVec2(535, 600), false, ImGuiWindowFlags_NoScrollbar);
+
+
+
+                        ImGui::InputTextEx("Username", NULL, login, 64, ImVec2(535, 47), 0);
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 15);
+                        ImGui::InputTextEx("Password", NULL, password, 64, ImVec2(535, 47), 0);
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 15);
+                        ImGui::InputTextEx("License", NULL, license, 64, ImVec2(535, 47), 0);
+
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 15);
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 55);
+
+                        if (ImGui::Button("Login", ImVec2(435, 45)))
+                        {
+                            menu_state = 2;
+                            timer_loading = 0.f;
+                            notificationSystem.Notification("Please Wait", "Authenticating with server", main_color);
+
+                            std::thread([]() {
+                                KeyAuthApp.login(login, password);
+                                if (KeyAuthApp.response.success)
+                                {
+                                    authed = true;
+                                    iTabs = 0;
+                                    WelcomeSound(); // welcome sound 
+
+
+                                    // start rpc
+                                    std::string username = "Username: " + KeyAuthApp.user_data.username;
+                                    std::string latest_expiry = "N/A";
+
+                                    for (const auto& sub : KeyAuthApp.user_data.subscriptions)
+                                    {
+                                        std::string expiry_time = tm_to_readable_time(timet_to_tm(string_to_timet(sub.expiry)));
+                                        latest_expiry = expiry_time;
+                                    }
+
+                                    std::string state_str = username + " | Expiry: " + latest_expiry;
+                                    std::string details_str = "Owner </> : CN";
+                                    std::string largeImageKey = "REX_CORPORATION_LOGO";  // Use key name, not URL
+                                    std::string smallImageKey = "DEV_LOGO";
+                                    std::string largeImageText = "CLUTCH NATION";
+                                    std::string smallImageText = "???? Developer : CLUTCH NATION";
+                                    std::string buttonLabel = "Buying From Here !";
+                                    std::string buttonUrl = "https://discord.gg/Q8w7WASZSP";
+
+                                    // ? Get current time before using it
+                                    time_t currentTime = std::time(nullptr);
+
+                                    // Discord init
+                                    DiscordEventHandlers Handle;
+                                    memset(&Handle, 0, sizeof(Handle));
+                                    Discord_Initialize("1362643471609106513", &Handle, 1, NULL);
+
+                                    // Rich Presence
+                                    DiscordRichPresence discordPresence;
+                                    memset(&discordPresence, 0, sizeof(discordPresence));
+
+                                    discordPresence.state = state_str.c_str();
+                                    discordPresence.details = details_str.c_str();
+                                    discordPresence.startTimestamp = currentTime;
+
+                                    discordPresence.largeImageKey = "https://i.pinimg.com/originals/dd/be/da/ddbedac43908cbcaf8fbbdd175d7b21c.gif";
+                                    discordPresence.largeImageText = "POWER CHEAT BRUTAL";
+                                    discordPresence.smallImageKey = "https://i.pinimg.com/originals/94/c6/be/94c6be0fab7c1a5e84688142901f3742.gif";
+                                    discordPresence.button2_label = "Contact Owner";
+                                    discordPresence.button2_url = "https://discord.gg/RhQAsxeey5";
+                                    Discord_UpdatePresence(&discordPresence);
+                                    // end rpc
+
+                                }
+                                else
+                                {
+                                    notificationSystem.Notification("Notification", KeyAuthApp.response.message.c_str(), main_color);
+                                    menu_state = 0;
+                                    authed = false;
+                                }
+                                }).detach();
+                        }
+
+
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 55);
+
+                        if (ImGui::Button("Register", ImVec2(435, 45)))
+                        {
+                            menu_state = 3;
+                            timer_loading = 0.f;
+                            notificationSystem.Notification("Please Wait", "Checking License Status", main_color);
+
+                            std::thread([]() {
+                                KeyAuthApp.regstr(login, password, license);
+                                if (KeyAuthApp.response.success)
+                                {
+                                    authed = true;
+                                    iTabs = 0;
+                                    notificationSystem.Notification("Notification", KeyAuthApp.response.message.c_str(), main_color);
+                                }
+                                else
+                                {
+                                    authed = false;
+                                    notificationSystem.Notification("Notification", KeyAuthApp.response.message.c_str(), main_color);
+                                    menu_state = 0;
+                                }
+                                }).detach();
+                        }
+
+                    }ImGui::EndChild();
+
+                    ParticlesH();
+                    ParticlesV();
+                }
+
+
+                notificationSystem.DrawNotification();
+            }
+            move_window();
+            ImGui::End();
+            RenderBlur(hwnd);
+            RenderBlur(hwnd);
+        }
+
+        ImGui::Render();
+        const float clear_color_with_alpha[4] = { 0 };
+        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
+        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+        g_pSwapChain->Present(1, 0);
+    }
+
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
+
+    CleanupDeviceD3D();
+    ::DestroyWindow(hwnd);
+    ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+
+    return 0;
+}
+
+#ifdef _WINDLL
+HMODULE hCurrentModule = nullptr;
+HANDLE hCurrentUIThread = nullptr;
+
+BOOL WINAPI DllMain1(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved, HMODULE hMod)
+{
+    if (fdwReason == DLL_PROCESS_ATTACH)
+    {
+        DisableThreadLibraryCalls(hinstDLL);
+        hCurrentModule = hinstDLL;
+        hCurrentUIThread = CreateThread(nullptr, NULL, (LPTHREAD_START_ROUTINE)malafamaX, nullptr, NULL, nullptr);
+
+
+
+
+
+
+
+    }
+
+    if (fdwReason == DLL_PROCESS_DETACH)
+        TerminateThread(hCurrentUIThread, 0);
+
+    return TRUE;
+}
+
+#else
+
+int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+    {
+        HRESULT hr;
+        char url[] = "";
+        char local[] = "C:\\Windows\\Celestra.wav";
+        hr = URLDownloadToFile(NULL, url, local, 0, NULL);
+    }
+
+    {
+        HRESULT hr;
+        char url[] = "https://raw.githubusercontent.com/ziitx/WAV/main/ACTIVADA.wav";
+        char local[] = "C:\\Windows\\ACTIVADA.wav";
+        hr = URLDownloadToFile(NULL, url, local, 0, NULL);
+    }
+
+    CelestraMain();
+
+
+
+    return 0;
+}
+
+
+#endif
+
+
