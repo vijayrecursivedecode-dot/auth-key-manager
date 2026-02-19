@@ -36,100 +36,112 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
   const name = app.name;
   const secret = app.secret;
   const version = app.version || "1.0";
-  const id = app.id;
+  const apiUrl = window.location.origin + "/api/1.2/";
 
   switch (lang) {
     case "C#":
-      return `public static api KeyAuthApp = new api(
+      return `public static api KeyVaultApp = new api(
     name: "${name}",
     ownerid: "${ownerId}",
     secret: "${secret}",
-    version: "${version}"
+    version: "${version}",
+    url: "${apiUrl}"
 );`;
     case "C++":
       return `std::string name = "${name}";
 std::string ownerid = "${ownerId}";
 std::string secret = "${secret}";
 std::string version = "${version}";
+std::string url = "${apiUrl}";
 
-KeyAuth::api KeyAuthApp(name, ownerid, secret, version);`;
+KeyVault::api KeyVaultApp(name, ownerid, secret, version, url);`;
     case "Java":
-      return `public static KeyAuth.api KeyAuthApp = new KeyAuth.api(
-    "${name}",
-    "${ownerId}",
-    "${secret}",
-    "${version}"
-);`;
-    case "Python":
-      return `keyauthapp = api(
-    name="${name}",
-    ownerid="${ownerId}",
-    secret="${secret}",
-    version="${version}"
-)`;
-    case "PHP":
-      return `$KeyAuthApp = new KeyAuth\\api(
-    "${name}",
-    "${ownerId}",
-    "${secret}",
-    "${version}"
-);`;
-    case "JavaScript":
-      return `const KeyAuthApp = new KeyAuth({
-    name: "${name}",
-    ownerId: "${ownerId}",
-    secret: "${secret}",
-    version: "${version}"
-});`;
-    case "TypeScript":
-      return `const KeyAuthApp: KeyAuth = new KeyAuth({
-    name: "${name}",
-    ownerId: "${ownerId}",
-    secret: "${secret}",
-    version: "${version}"
-});`;
-    case "VB.Net":
-      return `Public Shared KeyAuthApp As New api(
-    name:="${name}",
-    ownerid:="${ownerId}",
-    secret:="${secret}",
-    version:="${version}"
-)`;
-    case "Rust":
-      return `let mut keyauthapp = KeyauthApi::new(
+      return `public static KeyVault KeyVaultApp = new KeyVault(
     "${name}",
     "${ownerId}",
     "${secret}",
     "${version}",
-    env!("CARGO_PKG_VERSION")
+    "${apiUrl}"
+);`;
+    case "Python":
+      return `keyvaultapp = api(
+    name="${name}",
+    ownerid="${ownerId}",
+    secret="${secret}",
+    version="${version}",
+    url="${apiUrl}"
+)`;
+    case "PHP":
+      return `$KeyVaultApp = new KeyVault\\api(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}",
+    "${apiUrl}"
+);`;
+    case "JavaScript":
+      return `const KeyVaultApp = new KeyVault({
+    name: "${name}",
+    ownerId: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}",
+    url: "${apiUrl}"
+});`;
+    case "TypeScript":
+      return `const KeyVaultApp: KeyVault = new KeyVault({
+    name: "${name}",
+    ownerId: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}",
+    url: "${apiUrl}"
+});`;
+    case "VB.Net":
+      return `Public Shared KeyVaultApp As New api(
+    name:="${name}",
+    ownerid:="${ownerId}",
+    secret:="${secret}",
+    version:="${version}",
+    url:="${apiUrl}"
+)`;
+    case "Rust":
+      return `let mut keyvaultapp = KeyVaultApi::new(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}",
+    "${apiUrl}"
 );`;
     case "Go":
-      return `var api = gokeyauth.KeyAuth{
+      return `var api = keyvault.KeyVault{
     Name:    "${name}",
     OwnerId: "${ownerId}",
     Secret:  "${secret}",
     Version: "${version}",
+    Url:     "${apiUrl}",
 }`;
     case "Lua":
-      return `local KeyAuthApp = KeyAuth:new(
+      return `local KeyVaultApp = KeyVault:new(
     "${name}",
     "${ownerId}",
     "${secret}",
-    "${version}"
+    "${version}",
+    "${apiUrl}"
 )`;
     case "Ruby":
-      return `keyauth_app = KeyAuth::API.new(
+      return `keyvault_app = KeyVault::API.new(
     name: "${name}",
     owner_id: "${ownerId}",
     secret: "${secret}",
-    version: "${version}"
+    version: "${version}",
+    url: "${apiUrl}"
 )`;
     case "Perl":
-      return `my $keyauth = KeyAuth::API->new(
+      return `my $keyvault = KeyVault::API->new(
     name     => "${name}",
     owner_id => "${ownerId}",
     secret   => "${secret}",
-    version  => "${version}"
+    version  => "${version}",
+    url      => "${apiUrl}"
 );`;
     default:
       return "";

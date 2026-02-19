@@ -1,7 +1,313 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomUUID } from "crypto";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
+
+interface ClientSession {
+  sessionId: string;
+  appId: string;
+  userId?: string;
+  validated: boolean;
+  createdAt: number;
+}
+
+const clientSessions = new Map<string, ClientSession>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, session] of clientSessions) {
+    if (now - session.createdAt > 3600000) {
+      clientSessions.delete(id);
+    }
+  }
+}, 300000);
+
+function registerClientApi(app: Express) {
+  app.post("/api/1.2/", async (req, res) => {
+    const { type } = req.body;
+
+    try {
+      switch (type) {
+        case "init": {
+          const { name, ownerid, ver, secret } = req.body;
+          if (!name || !ownerid) {
+            return res.json({ success: false, message: "Missing name or ownerid" });
+          }
+          const application = await storage.getApplicationByNameAndOwner(name, ownerid);
+          if (!application) {
+            return res.json({ success: false, message: "Application not found. Check your application name and owner ID." });
+          }
+          if (secret && application.secret !== secret) {
+            return res.json({ success: false, message: "Invalid application secret." });
+          }
+          if (!application.enabled) {
+            return res.json({ success: false, message: "Application is disabled by the owner." });
+          }
+          if (ver && application.version && ver !== application.version) {
+            return res.json({ success: false, message: "invalidver", download: "" });
+          }
+          const sessionId = randomUUID();
+          clientSessions.set(sessionId, {
+            sessionId,
+            appId: application.id,
+            validated: true,
+            createdAt: Date.now(),
+          });
+          return res.json({
+            success: true,
+            message: "Initialized",
+            sessionid: sessionId,
+            appinfo: {
+              numUsers: String((await storage.getAppUsersByApp(application.id)).length),
+              numKeys: String((await storage.getLicensesByApp(application.id)).length),
+              version: application.version,
+              customerPanelLink: "",
+            },
+          });
+        }
+
+        case "login": {
+          const { username, pass, hwid, sessionid, name: appName, ownerid } = req.body;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+          }
+          const application = await storage.getApplication(session.appId);
+          if (!application || !application.enabled) {
+            return res.json({ success: false, message: "Application not found or disabled." });
+          }
+          const appUser = await storage.getAppUserByUsername(username, session.appId);
+          if (!appUser) {
+            return res.json({ success: false, message: "Username not found." });
+          }
+          if (appUser.banned) {
+            return res.json({ success: false, message: "User is banned." });
+          }
+          if (appUser.password && appUser.password !== pass) {
+            return res.json({ success: false, message: "Incorrect password." });
+          }
+          if (appUser.expiresAt && new Date(appUser.expiresAt) < new Date()) {
+            return res.json({ success: false, message: "Subscription expired." });
+          }
+          if (application.hwidLock && appUser.hwid && hwid && appUser.hwid !== hwid) {
+            return res.json({ success: false, message: "HWID mismatch. This account is locked to a different device." });
+          }
+          const updateData: any = {
+            lastLogin: new Date(),
+            ip: req.ip || req.headers["x-forwarded-for"] || null,
+          };
+          if (hwid && (!appUser.hwid || !application.hwidLock)) {
+            updateData.hwid = hwid;
+          }
+          await storage.updateAppUser(appUser.id, updateData);
+          session.userId = appUser.id;
+          return res.json({
+            success: true,
+            message: "Logged in successfully.",
+            info: {
+              username: appUser.username,
+              subscriptions: [{ subscription: String(appUser.level), expiry: appUser.expiresAt ? String(Math.floor(new Date(appUser.expiresAt).getTime() / 1000)) : "N/A" }],
+              ip: updateData.ip,
+              hwid: appUser.hwid || hwid || "",
+              createdate: appUser.createdAt ? String(Math.floor(new Date(appUser.createdAt).getTime() / 1000)) : "",
+              lastlogin: String(Math.floor(Date.now() / 1000)),
+            },
+          });
+        }
+
+        case "register": {
+          const { username, pass, key, hwid, sessionid } = req.body;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+          }
+          const application = await storage.getApplication(session.appId);
+          if (!application || !application.enabled) {
+            return res.json({ success: false, message: "Application not found or disabled." });
+          }
+          const existingUser = await storage.getAppUserByUsername(username, session.appId);
+          if (existingUser) {
+            return res.json({ success: false, message: "Username already taken." });
+          }
+          const license = await storage.getLicenseByKey(key, session.appId);
+          if (!license) {
+            return res.json({ success: false, message: "Invalid license key." });
+          }
+          if (!license.enabled) {
+            return res.json({ success: false, message: "License key is disabled." });
+          }
+          if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses) {
+            return res.json({ success: false, message: "License key has reached maximum uses." });
+          }
+          let expiresAt: Date | null = null;
+          if (license.duration) {
+            expiresAt = new Date();
+            const unit = license.durationUnit || "day";
+            const dur = license.duration;
+            if (unit === "hour") expiresAt.setHours(expiresAt.getHours() + dur);
+            else if (unit === "day") expiresAt.setDate(expiresAt.getDate() + dur);
+            else if (unit === "week") expiresAt.setDate(expiresAt.getDate() + dur * 7);
+            else if (unit === "month") expiresAt.setMonth(expiresAt.getMonth() + dur);
+            else if (unit === "year") expiresAt.setFullYear(expiresAt.getFullYear() + dur);
+          }
+          const newUser = await storage.createAppUser({
+            appId: session.appId,
+            username,
+            password: pass || null,
+            hwid: hwid || null,
+            ip: req.ip || (req.headers["x-forwarded-for"] as string) || null,
+            level: license.level || 1,
+            banned: false,
+            expiresAt,
+          });
+          await storage.updateLicense(license.id, {
+            usedCount: (license.usedCount || 0) + 1,
+            usedBy: username,
+          });
+          session.userId = newUser.id;
+          return res.json({
+            success: true,
+            message: "Registered successfully.",
+            info: {
+              username: newUser.username,
+              subscriptions: [{ subscription: String(newUser.level), expiry: expiresAt ? String(Math.floor(expiresAt.getTime() / 1000)) : "N/A" }],
+              ip: newUser.ip || "",
+              hwid: newUser.hwid || "",
+              createdate: String(Math.floor(Date.now() / 1000)),
+              lastlogin: String(Math.floor(Date.now() / 1000)),
+            },
+          });
+        }
+
+        case "license": {
+          const { key, hwid, sessionid } = req.body;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+          }
+          const application = await storage.getApplication(session.appId);
+          if (!application || !application.enabled) {
+            return res.json({ success: false, message: "Application not found or disabled." });
+          }
+          const license = await storage.getLicenseByKey(key, session.appId);
+          if (!license) {
+            return res.json({ success: false, message: "Invalid license key." });
+          }
+          if (!license.enabled) {
+            return res.json({ success: false, message: "License key is disabled." });
+          }
+          if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses && !license.usedBy) {
+            return res.json({ success: false, message: "License key has reached maximum uses." });
+          }
+          let expiresAt = license.expiresAt;
+          if (!expiresAt && license.duration) {
+            expiresAt = new Date();
+            const unit = license.durationUnit || "day";
+            const dur = license.duration;
+            if (unit === "hour") expiresAt.setHours(expiresAt.getHours() + dur);
+            else if (unit === "day") expiresAt.setDate(expiresAt.getDate() + dur);
+            else if (unit === "week") expiresAt.setDate(expiresAt.getDate() + dur * 7);
+            else if (unit === "month") expiresAt.setMonth(expiresAt.getMonth() + dur);
+            else if (unit === "year") expiresAt.setFullYear(expiresAt.getFullYear() + dur);
+            await storage.updateLicense(license.id, { expiresAt });
+          }
+          if (expiresAt && new Date(expiresAt) < new Date()) {
+            return res.json({ success: false, message: "License key has expired." });
+          }
+          if (!license.usedBy) {
+            await storage.updateLicense(license.id, {
+              usedCount: (license.usedCount || 0) + 1,
+              usedBy: hwid || "license-auth",
+            });
+          } else if (license.usedBy !== hwid && hwid && application.hwidLock) {
+            return res.json({ success: false, message: "License is already bound to a different device." });
+          }
+          return res.json({
+            success: true,
+            message: "License key validated successfully.",
+            info: {
+              username: license.usedBy || "license-user",
+              subscriptions: [{ subscription: String(license.level), expiry: expiresAt ? String(Math.floor(new Date(expiresAt).getTime() / 1000)) : "N/A" }],
+              ip: req.ip || "",
+              hwid: hwid || "",
+              createdate: license.createdAt ? String(Math.floor(new Date(license.createdAt).getTime() / 1000)) : "",
+              lastlogin: String(Math.floor(Date.now() / 1000)),
+            },
+          });
+        }
+
+        case "upgrade": {
+          const { username, key, sessionid } = req.body;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return res.json({ success: false, message: "Invalid session. Please re-initialize." });
+          }
+          const appUser = await storage.getAppUserByUsername(username, session.appId);
+          if (!appUser) {
+            return res.json({ success: false, message: "Username not found." });
+          }
+          const license = await storage.getLicenseByKey(key, session.appId);
+          if (!license || !license.enabled) {
+            return res.json({ success: false, message: "Invalid or disabled license key." });
+          }
+          if (license.maxUses && license.usedCount !== null && license.usedCount >= license.maxUses) {
+            return res.json({ success: false, message: "License key has reached maximum uses." });
+          }
+          let expiresAt = appUser.expiresAt ? new Date(appUser.expiresAt) : new Date();
+          if (expiresAt < new Date()) expiresAt = new Date();
+          if (license.duration) {
+            const unit = license.durationUnit || "day";
+            const dur = license.duration;
+            if (unit === "hour") expiresAt.setHours(expiresAt.getHours() + dur);
+            else if (unit === "day") expiresAt.setDate(expiresAt.getDate() + dur);
+            else if (unit === "week") expiresAt.setDate(expiresAt.getDate() + dur * 7);
+            else if (unit === "month") expiresAt.setMonth(expiresAt.getMonth() + dur);
+            else if (unit === "year") expiresAt.setFullYear(expiresAt.getFullYear() + dur);
+          }
+          const newLevel = Math.max(appUser.level || 1, license.level || 1);
+          await storage.updateAppUser(appUser.id, { expiresAt, level: newLevel });
+          await storage.updateLicense(license.id, {
+            usedCount: (license.usedCount || 0) + 1,
+            usedBy: username,
+          });
+          return res.json({
+            success: true,
+            message: "Upgrade successful.",
+          });
+        }
+
+        case "ban": {
+          const { sessionid } = req.body;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated || !session.userId) {
+            return res.json({ success: false, message: "Invalid session or no user logged in." });
+          }
+          await storage.updateAppUser(session.userId, { banned: true });
+          return res.json({ success: true, message: "User has been banned." });
+        }
+
+        case "var": {
+          return res.json({ success: false, message: "Variables are not supported yet." });
+        }
+
+        case "webhook": {
+          return res.json({ success: false, message: "Webhooks are not supported yet." });
+        }
+
+        case "log": {
+          return res.json({ success: true, message: "Log received." });
+        }
+
+        default:
+          return res.json({ success: false, message: `Unknown request type: ${type}` });
+      }
+    } catch (error) {
+      console.error("Client API error:", error);
+      return res.json({ success: false, message: "Server error" });
+    }
+  });
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -9,6 +315,8 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  registerClientApi(app);
 
   app.get("/api/applications", isAuthenticated, async (req: any, res) => {
     try {

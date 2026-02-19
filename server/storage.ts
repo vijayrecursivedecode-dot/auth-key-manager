@@ -50,12 +50,14 @@ function generateToken(): string {
 export interface IStorage {
   getApplicationsByOwner(ownerId: string): Promise<Application[]>;
   getApplication(id: string): Promise<Application | undefined>;
+  getApplicationByNameAndOwner(name: string, ownerId: string): Promise<Application | undefined>;
   createApplication(data: InsertApplication): Promise<Application>;
   updateApplication(id: string, data: Partial<Application>): Promise<Application | undefined>;
   deleteApplication(id: string): Promise<void>;
   resetApplicationSecret(id: string): Promise<Application | undefined>;
 
   getLicense(id: string): Promise<License | undefined>;
+  getLicenseByKey(licenseKey: string, appId: string): Promise<License | undefined>;
   getLicensesByOwner(ownerId: string): Promise<License[]>;
   getLicensesByApp(appId: string): Promise<License[]>;
   createLicenses(data: InsertLicense, count: number): Promise<License[]>;
@@ -63,6 +65,7 @@ export interface IStorage {
   deleteLicense(id: string): Promise<void>;
 
   getAppUser(id: string): Promise<AppUser | undefined>;
+  getAppUserByUsername(username: string, appId: string): Promise<AppUser | undefined>;
   getAppUsersByOwner(ownerId: string): Promise<AppUser[]>;
   getAppUsersByApp(appId: string): Promise<AppUser[]>;
   createAppUser(data: InsertAppUser): Promise<AppUser>;
@@ -70,6 +73,7 @@ export interface IStorage {
   deleteAppUser(id: string): Promise<void>;
 
   getToken(id: string): Promise<Token | undefined>;
+  getTokenByValue(token: string, appId: string): Promise<Token | undefined>;
   getTokensByOwner(ownerId: string): Promise<Token[]>;
   getTokensByApp(appId: string): Promise<Token[]>;
   createTokens(appId: string, count: number): Promise<Token[]>;
@@ -83,6 +87,14 @@ export class DatabaseStorage implements IStorage {
 
   async getApplication(id: string): Promise<Application | undefined> {
     const [app] = await db.select().from(applications).where(eq(applications.id, id));
+    return app;
+  }
+
+  async getApplicationByNameAndOwner(name: string, ownerId: string): Promise<Application | undefined> {
+    const [app] = await db
+      .select()
+      .from(applications)
+      .where(and(eq(applications.name, name), eq(applications.ownerId, ownerId)));
     return app;
   }
 
@@ -121,6 +133,14 @@ export class DatabaseStorage implements IStorage {
 
   async getLicense(id: string): Promise<License | undefined> {
     const [lic] = await db.select().from(licenses).where(eq(licenses.id, id));
+    return lic;
+  }
+
+  async getLicenseByKey(licenseKey: string, appId: string): Promise<License | undefined> {
+    const [lic] = await db
+      .select()
+      .from(licenses)
+      .where(and(eq(licenses.licenseKey, licenseKey), eq(licenses.appId, appId)));
     return lic;
   }
 
@@ -173,6 +193,14 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getAppUserByUsername(username: string, appId: string): Promise<AppUser | undefined> {
+    const [user] = await db
+      .select()
+      .from(appUsers)
+      .where(and(eq(appUsers.username, username), eq(appUsers.appId, appId)));
+    return user;
+  }
+
   async getAppUsersByOwner(ownerId: string): Promise<AppUser[]> {
     const apps = await this.getApplicationsByOwner(ownerId);
     if (apps.length === 0) return [];
@@ -208,6 +236,14 @@ export class DatabaseStorage implements IStorage {
 
   async getToken(id: string): Promise<Token | undefined> {
     const [tok] = await db.select().from(tokens).where(eq(tokens.id, id));
+    return tok;
+  }
+
+  async getTokenByValue(token: string, appId: string): Promise<Token | undefined> {
+    const [tok] = await db
+      .select()
+      .from(tokens)
+      .where(and(eq(tokens.token, token), eq(tokens.appId, appId)));
     return tok;
   }
 
