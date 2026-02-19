@@ -346,43 +346,39 @@ setInterval(() => {
 function registerLocalAuth(app: Express) {
   app.post("/api/local/register", async (req, res) => {
     try {
-      const { username, password, licenseKey } = req.body;
-      if (!username || !password || !licenseKey) {
-        return res.status(400).json({ message: "Username, password, and license key are required." });
+      const { username, password, email } = req.body;
+      if (!username || !password || !email) {
+        return res.status(400).json({ message: "Username, email, and password are required." });
       }
       if (username.length < 3) {
         return res.status(400).json({ message: "Username must be at least 3 characters." });
       }
-      if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters." });
+      if (password.length < 12) {
+        return res.status(400).json({ message: "Password must be at least 12 characters." });
+      }
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+        return res.status(400).json({ message: "Password must contain uppercase, lowercase, number, and symbol." });
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Please enter a valid email address." });
       }
       const existing = await storage.getAccountByUsername(username);
       if (existing) {
         return res.status(400).json({ message: "Username already taken." });
       }
-      const [license] = await db.select().from(licensesTable)
-        .where(eq(licensesTable.licenseKey, licenseKey));
-      if (!license) {
-        return res.status(400).json({ message: "Invalid license key." });
-      }
-      if (!license.enabled) {
-        return res.status(400).json({ message: "License key is disabled." });
-      }
-      if (license.usedBy) {
-        return res.status(400).json({ message: "License key has already been used." });
+      const [existingEmail] = await db.select().from(users).where(eq(users.email, email));
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already in use." });
       }
       const passwordHash = await bcrypt.hash(password, 10);
       const userId = randomUUID();
       const [user] = await db.insert(users).values({
         id: userId,
         firstName: username,
-        email: `${username}@keyvault.local`,
+        email,
       }).returning();
       const account = await storage.createAccount(username, passwordHash, userId);
-      await db.update(licensesTable).set({
-        usedBy: username,
-        usedCount: (license.usedCount || 0) + 1,
-      }).where(eq(licensesTable.id, license.id));
       const sessionId = randomUUID();
       localSessions.set(sessionId, { userId, createdAt: Date.now() });
       res.cookie("kv_session", sessionId, {
@@ -396,7 +392,7 @@ function registerLocalAuth(app: Express) {
     } catch (error: any) {
       console.error("Register error:", error);
       if (error?.code === "23505") {
-        return res.status(400).json({ message: "Username already taken." });
+        return res.status(400).json({ message: "Username or email already taken." });
       }
       return res.status(500).json({ message: "Registration failed." });
     }
