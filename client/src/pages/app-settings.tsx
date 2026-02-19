@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,16 +22,130 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Save, RotateCcw, Settings, Copy, RefreshCw } from "lucide-react";
+import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink } from "lucide-react";
 import type { Application } from "@shared/schema";
+
+const SUPPORTED_LANGUAGES = [
+  "C#", "C++", "Python", "PHP", "JavaScript", "TypeScript",
+  "Java", "VB.Net", "Rust", "Go", "Lua", "Ruby", "Perl",
+] as const;
+
+type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+
+function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: string): string {
+  const name = app.name;
+  const secret = app.secret;
+  const version = app.version || "1.0";
+  const id = app.id;
+
+  switch (lang) {
+    case "C#":
+      return `public static api KeyAuthApp = new api(
+    name: "${name}",
+    ownerid: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}"
+);`;
+    case "C++":
+      return `std::string name = "${name}";
+std::string ownerid = "${ownerId}";
+std::string secret = "${secret}";
+std::string version = "${version}";
+
+KeyAuth::api KeyAuthApp(name, ownerid, secret, version);`;
+    case "Java":
+      return `public static KeyAuth.api KeyAuthApp = new KeyAuth.api(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}"
+);`;
+    case "Python":
+      return `keyauthapp = api(
+    name="${name}",
+    ownerid="${ownerId}",
+    secret="${secret}",
+    version="${version}"
+)`;
+    case "PHP":
+      return `$KeyAuthApp = new KeyAuth\\api(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}"
+);`;
+    case "JavaScript":
+      return `const KeyAuthApp = new KeyAuth({
+    name: "${name}",
+    ownerId: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}"
+});`;
+    case "TypeScript":
+      return `const KeyAuthApp: KeyAuth = new KeyAuth({
+    name: "${name}",
+    ownerId: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}"
+});`;
+    case "VB.Net":
+      return `Public Shared KeyAuthApp As New api(
+    name:="${name}",
+    ownerid:="${ownerId}",
+    secret:="${secret}",
+    version:="${version}"
+)`;
+    case "Rust":
+      return `let mut keyauthapp = KeyauthApi::new(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}",
+    env!("CARGO_PKG_VERSION")
+);`;
+    case "Go":
+      return `var api = gokeyauth.KeyAuth{
+    Name:    "${name}",
+    OwnerId: "${ownerId}",
+    Secret:  "${secret}",
+    Version: "${version}",
+}`;
+    case "Lua":
+      return `local KeyAuthApp = KeyAuth:new(
+    "${name}",
+    "${ownerId}",
+    "${secret}",
+    "${version}"
+)`;
+    case "Ruby":
+      return `keyauth_app = KeyAuth::API.new(
+    name: "${name}",
+    owner_id: "${ownerId}",
+    secret: "${secret}",
+    version: "${version}"
+)`;
+    case "Perl":
+      return `my $keyauth = KeyAuth::API->new(
+    name     => "${name}",
+    owner_id => "${ownerId}",
+    secret   => "${secret}",
+    version  => "${version}"
+);`;
+    default:
+      return "";
+  }
+}
 
 export default function AppSettingsPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [selectedAppId, setSelectedAppId] = useState("");
   const [name, setName] = useState("");
   const [version, setVersion] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [hwidLock, setHwidLock] = useState(false);
+  const [showSnippet, setShowSnippet] = useState(false);
+  const [snippetLang, setSnippetLang] = useState<SupportedLanguage>("C#");
 
   const { data: apps, isLoading } = useQuery<Application[]>({
     queryKey: ["/api/applications"],
@@ -256,68 +371,184 @@ export default function AppSettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="credentials" className="mt-4">
+          <TabsContent value="credentials" className="mt-4 space-y-4">
             <Card className="max-w-2xl p-6">
-              <h3 className="mb-4 font-semibold">Credentials</h3>
-              <div className="space-y-5">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">
-                    Application ID
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedApp.id}
-                      readOnly
-                      className="font-mono text-xs"
-                      data-testid="input-app-id"
-                    />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => copyToClipboard(selectedApp.id, "App ID")}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">
-                    Application Secret
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedApp.secret}
-                      readOnly
-                      className="font-mono text-xs"
-                      type="password"
-                      data-testid="input-app-secret"
-                    />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() =>
-                        copyToClipboard(selectedApp.secret, "Secret")
-                      }
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <Button
-                  variant="destructive"
-                  onClick={() => resetSecret.mutate()}
-                  disabled={resetSecret.isPending}
-                  data-testid="button-reset-secret"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {resetSecret.isPending ? "Resetting..." : "Reset Secret"}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  Resetting the secret will invalidate the current secret. Make
-                  sure to update your application with the new secret.
-                </p>
+              <h3 className="mb-1 font-semibold">Application Credentials</h3>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Simply replace the placeholder code in the example with these
+              </p>
+
+              <div className="mb-5 flex items-center gap-3">
+                <Switch
+                  checked={showSnippet}
+                  onCheckedChange={setShowSnippet}
+                  data-testid="switch-show-snippet"
+                />
+                <span className="text-sm font-medium">Display Code Snippet</span>
               </div>
+
+              <div className="space-y-4">
+                <div className="rounded-md border p-4">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Application Name
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold" data-testid="text-cred-app-name">
+                      {selectedApp.name}
+                    </p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(selectedApp.name, "App Name")}
+                      data-testid="button-copy-app-name"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-4">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Account Owner ID
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-mono text-sm" data-testid="text-cred-owner-id">
+                      {user?.id || ""}
+                    </p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(user?.id || "", "Owner ID")}
+                      data-testid="button-copy-owner-id"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-4">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Application Secret
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="overflow-x-auto font-mono text-sm" data-testid="text-cred-secret">
+                      {selectedApp.secret}
+                    </p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(selectedApp.secret, "Secret")}
+                      data-testid="button-copy-secret"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-4">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Application Version
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold" data-testid="text-cred-version">
+                      {selectedApp.version || "1.0"}
+                    </p>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(selectedApp.version || "1.0", "Version")}
+                      data-testid="button-copy-version"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                variant="destructive"
+                className="mt-5 w-full"
+                onClick={() => resetSecret.mutate()}
+                disabled={resetSecret.isPending}
+                data-testid="button-reset-secret"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {resetSecret.isPending ? "Resetting..." : "Refresh Application Secret"}
+              </Button>
             </Card>
+
+            {showSnippet && selectedApp && (
+              <Card className="max-w-2xl p-6">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+                  <h3 className="font-semibold">Code Snippet</h3>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-muted-foreground">Select Language:</label>
+                    <Select
+                      value={snippetLang}
+                      onValueChange={(v) => setSnippetLang(v as SupportedLanguage)}
+                    >
+                      <SelectTrigger className="w-[140px]" data-testid="select-snippet-lang">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_LANGUAGES.map((lang) => (
+                          <SelectItem key={lang} value={lang}>
+                            {lang}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-muted/50 p-4">
+                  <pre className="overflow-x-auto text-sm leading-relaxed">
+                    <code data-testid="text-code-snippet">
+                      {getCodeSnippet(snippetLang, selectedApp, user?.id || "")}
+                    </code>
+                  </pre>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    variant="default"
+                    onClick={() =>
+                      copyToClipboard(
+                        getCodeSnippet(snippetLang, selectedApp, user?.id || ""),
+                        "Code snippet"
+                      )
+                    }
+                    data-testid="button-copy-code"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Code
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      window.open(
+                        `https://github.com/KeyAuth/${snippetLang === "C#" ? "KeyAuth-CSHARP-Example" : snippetLang === "C++" ? "KeyAuth-CPP-Example" : snippetLang === "Python" ? "KeyAuth-Python-Example" : snippetLang === "Java" ? "KeyAuth-Java-Example" : "KeyAuth-" + snippetLang + "-Example"}`,
+                        "_blank"
+                      )
+                    }
+                    data-testid="button-view-example"
+                  >
+                    <Code className="mr-2 h-4 w-4" />
+                    View Example
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      window.open("https://keyauth.readme.io/reference/", "_blank")
+                    }
+                    data-testid="button-view-tutorial"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Tutorial
+                  </Button>
+                </div>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       )}
