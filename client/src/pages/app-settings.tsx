@@ -1,0 +1,326 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { isUnauthorizedError } from "@/lib/auth-utils";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Save, RotateCcw, Settings, Copy, RefreshCw } from "lucide-react";
+import type { Application } from "@shared/schema";
+
+export default function AppSettingsPage() {
+  const { toast } = useToast();
+  const [selectedAppId, setSelectedAppId] = useState("");
+  const [name, setName] = useState("");
+  const [version, setVersion] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [hwidLock, setHwidLock] = useState(false);
+
+  const { data: apps, isLoading } = useQuery<Application[]>({
+    queryKey: ["/api/applications"],
+  });
+
+  const selectedApp = apps?.find((a) => a.id === selectedAppId);
+
+  useEffect(() => {
+    if (apps && apps.length > 0 && !selectedAppId) {
+      setSelectedAppId(apps[0].id);
+    }
+  }, [apps, selectedAppId]);
+
+  useEffect(() => {
+    if (selectedApp) {
+      setName(selectedApp.name);
+      setVersion(selectedApp.version || "1.0");
+      setEnabled(selectedApp.enabled ?? true);
+      setHwidLock(selectedApp.hwidLock ?? false);
+    }
+  }, [selectedApp]);
+
+  const updateApp = useMutation({
+    mutationFn: async () => {
+      await apiRequest("PATCH", `/api/applications/${selectedAppId}`, {
+        name,
+        version,
+        enabled,
+        hwidLock,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      toast({ title: "Settings saved successfully" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Unauthorized", description: "Logging in again...", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const resetSecret = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", `/api/applications/${selectedAppId}/reset-secret`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/applications"] });
+      toast({ title: "Secret reset successfully" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Unauthorized", description: "Logging in again...", variant: "destructive" });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} copied to clipboard` });
+  };
+
+  const resetForm = () => {
+    if (selectedApp) {
+      setName(selectedApp.name);
+      setVersion(selectedApp.version || "1.0");
+      setEnabled(selectedApp.enabled ?? true);
+      setHwidLock(selectedApp.hwidLock ?? false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <Skeleton className="mb-6 h-10 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  if (!apps || apps.length === 0) {
+    return (
+      <div className="p-6">
+        <Card className="flex flex-col items-center justify-center p-12 text-center">
+          <Settings className="mb-4 h-12 w-12 text-muted-foreground/50" />
+          <h3 className="font-semibold">No applications</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create an application first to configure its settings.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">App Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Configure application settings
+        </p>
+      </div>
+
+      <div className="mb-6 max-w-sm">
+        <label className="mb-1.5 block text-sm font-medium">
+          Select Application
+        </label>
+        <Select value={selectedAppId} onValueChange={setSelectedAppId}>
+          <SelectTrigger data-testid="select-settings-app">
+            <SelectValue placeholder="Select application" />
+          </SelectTrigger>
+          <SelectContent>
+            {apps.map((app) => (
+              <SelectItem key={app.id} value={app.id}>
+                {app.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedApp && (
+        <Tabs defaultValue="general">
+          <TabsList>
+            <TabsTrigger value="general" data-testid="tab-general">
+              General
+            </TabsTrigger>
+            <TabsTrigger value="security" data-testid="tab-security">
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="credentials" data-testid="tab-credentials">
+              Credentials
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" className="mt-4">
+            <Card className="max-w-2xl p-6">
+              <h3 className="mb-4 font-semibold">General Settings</h3>
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Application Name
+                  </label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    data-testid="input-settings-name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Version
+                  </label>
+                  <Input
+                    value={version}
+                    onChange={(e) => setVersion(e.target.value)}
+                    data-testid="input-settings-version"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Application Enabled</p>
+                    <p className="text-xs text-muted-foreground">
+                      Disable to prevent all authentication requests
+                    </p>
+                  </div>
+                  <Switch
+                    checked={enabled}
+                    onCheckedChange={setEnabled}
+                    data-testid="switch-settings-enabled"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    onClick={() => updateApp.mutate()}
+                    disabled={updateApp.isPending}
+                    data-testid="button-save-settings"
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {updateApp.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                  <Button variant="outline" onClick={resetForm}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="security" className="mt-4">
+            <Card className="max-w-2xl p-6">
+              <h3 className="mb-4 font-semibold">Security Settings</h3>
+              <div className="space-y-5">
+                <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                  <div>
+                    <p className="text-sm font-medium">HWID Lock</p>
+                    <p className="text-xs text-muted-foreground">
+                      Bind users to specific hardware IDs to prevent sharing
+                    </p>
+                  </div>
+                  <Switch
+                    checked={hwidLock}
+                    onCheckedChange={setHwidLock}
+                    data-testid="switch-settings-hwid"
+                  />
+                </div>
+                <Button
+                  onClick={() => updateApp.mutate()}
+                  disabled={updateApp.isPending}
+                  data-testid="button-save-security"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {updateApp.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="credentials" className="mt-4">
+            <Card className="max-w-2xl p-6">
+              <h3 className="mb-4 font-semibold">Credentials</h3>
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Application ID
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={selectedApp.id}
+                      readOnly
+                      className="font-mono text-xs"
+                      data-testid="input-app-id"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => copyToClipboard(selectedApp.id, "App ID")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">
+                    Application Secret
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={selectedApp.secret}
+                      readOnly
+                      className="font-mono text-xs"
+                      type="password"
+                      data-testid="input-app-secret"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() =>
+                        copyToClipboard(selectedApp.secret, "Secret")
+                      }
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => resetSecret.mutate()}
+                  disabled={resetSecret.isPending}
+                  data-testid="button-reset-secret"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {resetSecret.isPending ? "Resetting..." : "Reset Secret"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Resetting the secret will invalidate the current secret. Make
+                  sure to update your application with the new secret.
+                </p>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
+  );
+}
