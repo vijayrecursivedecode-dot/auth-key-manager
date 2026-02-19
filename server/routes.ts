@@ -24,13 +24,26 @@ setInterval(() => {
 }, 300000);
 
 function registerClientApi(app: Express) {
-  app.post("/api/1.2/", async (req, res) => {
-    const { type } = req.body;
+  app.options("/api/1.2/", (req, res) => {
+    res.set({
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Accept",
+    });
+    res.sendStatus(204);
+  });
+
+  const handleClientRequest = async (req: any, res: any) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Content-Type", "application/json");
+
+    const params = { ...req.query, ...req.body };
+    const { type } = params;
 
     try {
       switch (type) {
         case "init": {
-          const { name, ownerid, ver, secret } = req.body;
+          const { name, ownerid, ver, secret } = params;
           if (!name || !ownerid) {
             return res.json({ success: false, message: "Missing name or ownerid" });
           }
@@ -68,7 +81,7 @@ function registerClientApi(app: Express) {
         }
 
         case "login": {
-          const { username, pass, hwid, sessionid, name: appName, ownerid } = req.body;
+          const { username, pass, hwid, sessionid, name: appName, ownerid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
             return res.json({ success: false, message: "Invalid session. Please re-initialize." });
@@ -117,7 +130,7 @@ function registerClientApi(app: Express) {
         }
 
         case "register": {
-          const { username, pass, key, hwid, sessionid } = req.body;
+          const { username, pass, key, hwid, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
             return res.json({ success: false, message: "Invalid session. Please re-initialize." });
@@ -181,7 +194,7 @@ function registerClientApi(app: Express) {
         }
 
         case "license": {
-          const { key, hwid, sessionid } = req.body;
+          const { key, hwid, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
             return res.json({ success: false, message: "Invalid session. Please re-initialize." });
@@ -238,7 +251,7 @@ function registerClientApi(app: Express) {
         }
 
         case "upgrade": {
-          const { username, key, sessionid } = req.body;
+          const { username, key, sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated) {
             return res.json({ success: false, message: "Invalid session. Please re-initialize." });
@@ -278,7 +291,7 @@ function registerClientApi(app: Express) {
         }
 
         case "ban": {
-          const { sessionid } = req.body;
+          const { sessionid } = params;
           const session = clientSessions.get(sessionid);
           if (!session || !session.validated || !session.userId) {
             return res.json({ success: false, message: "Invalid session or no user logged in." });
@@ -306,7 +319,12 @@ function registerClientApi(app: Express) {
       console.error("Client API error:", error);
       return res.json({ success: false, message: "Server error" });
     }
-  });
+  };
+
+  app.post("/api/1.2/", handleClientRequest);
+  app.get("/api/1.2/", handleClientRequest);
+  app.post("/api/1.2", handleClientRequest);
+  app.get("/api/1.2", handleClientRequest);
 }
 
 export async function registerRoutes(
