@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { randomUUID, createHash } from "crypto";
+import { randomUUID, createHash, createHmac } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import sodium from "libsodium-wrappers";
@@ -47,11 +47,19 @@ function signResponse(body: string): { signature: string; timestamp: string } {
   };
 }
 
-function sendSignedJson(res: any, ownerid: string, data: any) {
+function sendSignedJson(res: any, ownerid: string, data: any, enckey?: string) {
   const responseData = { ...data, ownerid };
   if (!("code" in responseData)) {
     responseData.code = data.success ? "68" : "0";
   }
+
+  if (enckey) {
+    const bodyForHmac = JSON.stringify(responseData);
+    const hmacSig = createHmac("sha256", enckey).update(bodyForHmac).digest("hex");
+    res.set("signature", hmacSig);
+    responseData.signature = hmacSig;
+  }
+
   const body = JSON.stringify(responseData);
   const { signature, timestamp } = signResponse(body);
   res.set("x-signature-ed25519", signature);
@@ -65,6 +73,7 @@ interface ClientSession {
   userId?: string;
   validated: boolean;
   createdAt: number;
+  enckey?: string;
 }
 
 const clientSessions = new Map<string, ClientSession>();
@@ -100,14 +109,23 @@ function registerClientApi(app: Express) {
     const { type } = params;
     const reqOwnerid = params.ownerid || "";
 
-    const sendRes = (data: any) => sendSignedJson(res, reqOwnerid, data);
+    const getSessionEnckey = (): string | undefined => {
+      const sid = params.sessionid;
+      if (sid) {
+        const session = clientSessions.get(sid);
+        if (session?.enckey) return session.enckey;
+      }
+      return params.enckey || undefined;
+    };
+
+    const sendRes = (data: any) => sendSignedJson(res, reqOwnerid, data, getSessionEnckey());
 
     try {
       switch (type) {
         case "init": {
-          const { name, ownerid, ver, secret } = params;
+          const { name, ownerid, ver, secret, enckey } = params;
           if (!name || !ownerid) {
-            return sendSignedJson(res, ownerid || "", { success: false, message: "Missing name or ownerid" });
+            return sendSignedJson(res, ownerid || "", { success: false, message: "Missing name or ownerid" }, enckey);
           }
           let application = await storage.getApplicationByNameAndOwner(name, ownerid);
           if (!application) {
@@ -123,16 +141,16 @@ function registerClientApi(app: Express) {
             }
           }
           if (!application) {
-            return sendSignedJson(res, ownerid, { success: false, message: "Application not found. Check your application name and owner ID." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Application not found. Check your application name and owner ID." }, enckey);
           }
           if (secret && application.secret !== secret) {
-            return sendSignedJson(res, ownerid, { success: false, message: "Invalid application secret." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Invalid application secret." }, enckey);
           }
           if (!application.enabled) {
-            return sendSignedJson(res, ownerid, { success: false, message: "Application is disabled by the owner." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Application is disabled by the owner." }, enckey);
           }
           if (ver && application.version && ver !== application.version) {
-            return sendSignedJson(res, ownerid, { success: false, message: "invalidver", download: "" });
+            return sendSignedJson(res, ownerid, { success: false, message: "invalidver", download: "" }, enckey);
           }
           const sessionId = randomUUID();
           clientSessions.set(sessionId, {
@@ -140,6 +158,7 @@ function registerClientApi(app: Express) {
             appId: application.id,
             validated: true,
             createdAt: Date.now(),
+            enckey: enckey || undefined,
           });
           return sendSignedJson(res, ownerid, {
             success: true,
@@ -154,7 +173,7 @@ function registerClientApi(app: Express) {
               customerPanelLink: "",
               downloadLink: "",
             },
-          });
+          }, enckey);
         }
 
         case "login": {
