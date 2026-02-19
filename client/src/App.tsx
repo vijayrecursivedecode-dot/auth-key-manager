@@ -17,6 +17,7 @@ import LicensesPage from "@/pages/licenses";
 import AppUsersPage from "@/pages/app-users";
 import TokensPage from "@/pages/tokens";
 import AppSettingsPage from "@/pages/app-settings";
+import StatisticsPage from "@/pages/statistics";
 import NotFound from "@/pages/not-found";
 
 function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,7 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
+          <header className="sticky top-0 z-50 flex items-center justify-between gap-4 border-b bg-background/80 px-4 py-2 backdrop-blur-md">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />
           </header>
@@ -51,6 +52,7 @@ function AuthenticatedApp() {
         <Route path="/dashboard/users" component={AppUsersPage} />
         <Route path="/dashboard/tokens" component={TokensPage} />
         <Route path="/dashboard/settings" component={AppSettingsPage} />
+        <Route path="/dashboard/statistics" component={StatisticsPage} />
         <Route path="/">
           <Redirect to="/dashboard" />
         </Route>

@@ -118,7 +118,7 @@ export default function LicensesPage() {
   );
 
   return (
-    <div className="p-6">
+    <div className="p-6 lg:p-8 animate-fade-in">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Licenses</h1>

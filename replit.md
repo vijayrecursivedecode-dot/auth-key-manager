@@ -13,7 +13,7 @@ A KeyAuth-style software licensing and authentication management platform. Users
 ## Project Structure
 ```
 client/src/
-  pages/         - Landing, Dashboard, ManageApps, Licenses, AppUsers, Tokens, AppSettings
+  pages/         - Landing, Dashboard, ManageApps, Licenses, AppUsers, Tokens, AppSettings, Statistics
   components/    - AppSidebar, ThemeProvider, ThemeToggle, ui/ (shadcn)
   hooks/         - use-auth, use-toast, use-mobile
   lib/           - queryClient, utils, auth-utils
@@ -42,6 +42,7 @@ shared/
 - GET/POST/PATCH/DELETE `/api/licenses`
 - GET/POST/PATCH/DELETE `/api/app-users`
 - GET/POST/DELETE `/api/tokens`
+- GET `/api/statistics` - Aggregated analytics (totals, per-app breakdowns, by-level)
 
 ## Public Client API (POST /api/1.2/)
 External applications (Java, C++, C#, Python, etc.) can call this endpoint to authenticate.
@@ -62,9 +63,17 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 - `npm run dev` starts both frontend and backend on port 5000
 - `npm run db:push` syncs database schema
 
+## Design & Theme
+- Purple accent color (hue 265) with dark mode default
+- Inter font family, JetBrains Mono for code
+- Smooth fade-in and slide-up animations on page transitions
+- Sidebar with grouped navigation (Main + Insights sections)
+- Branded logo with purple icon badge
+
 ## Recent Changes
+- 2026-02-19: Design overhaul - purple accent theme, animations, improved sidebar, redesigned landing page
+- 2026-02-19: Added Statistics page with real-time analytics (per-app breakdowns, license/user/token stats)
 - 2026-02-19: Added public client API (/api/1.2/) supporting init, login, register, license, upgrade, ban
 - 2026-02-19: Added code snippet feature with 13 language support (C#, C++, Java, Python, etc.)
 - 2026-02-19: Initial MVP build with full CRUD for apps, licenses, users, tokens
-- Dark mode theme with Inter font family
 - Replit Auth integration for user authentication

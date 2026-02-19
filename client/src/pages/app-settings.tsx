@@ -237,7 +237,7 @@ export default function AppSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-6 lg:p-8">
         <Skeleton className="mb-6 h-10 w-64" />
         <Skeleton className="h-96 w-full" />
       </div>
@@ -246,7 +246,7 @@ export default function AppSettingsPage() {
 
   if (!apps || apps.length === 0) {
     return (
-      <div className="p-6">
+      <div className="p-6 lg:p-8">
         <Card className="flex flex-col items-center justify-center p-12 text-center">
           <Settings className="mb-4 h-12 w-12 text-muted-foreground/50" />
           <h3 className="font-semibold">No applications</h3>
@@ -259,7 +259,7 @@ export default function AppSettingsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 lg:p-8 animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">App Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">

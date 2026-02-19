@@ -555,6 +555,79 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/statistics", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const apps = await storage.getApplicationsByOwner(userId);
+      const allLicenses = await storage.getLicensesByOwner(userId);
+      const allUsers = await storage.getAppUsersByOwner(userId);
+      const allTokens = await storage.getTokensByOwner(userId);
+
+      const activeLicenses = allLicenses.filter((l) => l.enabled);
+      const usedLicenses = allLicenses.filter((l) => l.usedBy);
+      const expiredLicenses = allLicenses.filter((l) => l.expiresAt && new Date(l.expiresAt) < new Date());
+      const bannedUsers = allUsers.filter((u) => u.banned);
+      const activeUsers = allUsers.filter((u) => !u.banned && (!u.expiresAt || new Date(u.expiresAt) >= new Date()));
+      const usedTokens = allTokens.filter((t) => t.used);
+      const enabledApps = apps.filter((a) => a.enabled);
+
+      const perAppStats = apps.map((app) => {
+        const appLicenses = allLicenses.filter((l) => l.appId === app.id);
+        const appUsers = allUsers.filter((u) => u.appId === app.id);
+        const appTokens = allTokens.filter((t) => t.appId === app.id);
+        return {
+          appId: app.id,
+          appName: app.name,
+          enabled: app.enabled,
+          version: app.version,
+          totalLicenses: appLicenses.length,
+          activeLicenses: appLicenses.filter((l) => l.enabled).length,
+          usedLicenses: appLicenses.filter((l) => l.usedBy).length,
+          totalUsers: appUsers.length,
+          activeUsers: appUsers.filter((u) => !u.banned).length,
+          bannedUsers: appUsers.filter((u) => u.banned).length,
+          totalTokens: appTokens.length,
+          usedTokens: appTokens.filter((t) => t.used).length,
+        };
+      });
+
+      const licensesByLevel: Record<number, number> = {};
+      allLicenses.forEach((l) => {
+        const level = l.level || 1;
+        licensesByLevel[level] = (licensesByLevel[level] || 0) + 1;
+      });
+
+      const usersByLevel: Record<number, number> = {};
+      allUsers.forEach((u) => {
+        const level = u.level || 1;
+        usersByLevel[level] = (usersByLevel[level] || 0) + 1;
+      });
+
+      res.json({
+        overview: {
+          totalApps: apps.length,
+          enabledApps: enabledApps.length,
+          totalLicenses: allLicenses.length,
+          activeLicenses: activeLicenses.length,
+          usedLicenses: usedLicenses.length,
+          expiredLicenses: expiredLicenses.length,
+          totalUsers: allUsers.length,
+          activeUsers: activeUsers.length,
+          bannedUsers: bannedUsers.length,
+          totalTokens: allTokens.length,
+          usedTokens: usedTokens.length,
+          unusedTokens: allTokens.length - usedTokens.length,
+        },
+        perApp: perAppStats,
+        licensesByLevel,
+        usersByLevel,
+      });
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+      res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
   app.delete("/api/tokens/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
