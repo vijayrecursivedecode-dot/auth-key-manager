@@ -3,23 +3,30 @@ import { createServer, type Server } from "http";
 import { randomUUID, createHash } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import nacl from "tweetnacl";
+import sodium from "libsodium-wrappers";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { users } from "@shared/models/auth";
 import { licenses as licensesTable } from "@shared/schema";
 import { db } from "./db";
 
-function getStableSigningKeyPair() {
+let signingKeyPair: { publicKey: Uint8Array; privateKey: Uint8Array; keyType: string };
+let API_PUBLIC_KEY: string;
+let sodiumReady = false;
+
+async function initSodium() {
+  await sodium.ready;
   const seed = createHash("sha256")
     .update(process.env.SESSION_SECRET || "keyvault-default-signing-seed")
-    .digest()
-    .subarray(0, 32);
-  return nacl.sign.keyPair.fromSeed(seed);
+    .digest();
+  const seedBytes = new Uint8Array(seed.buffer, seed.byteOffset, 32);
+  signingKeyPair = sodium.crypto_sign_seed_keypair(seedBytes);
+  API_PUBLIC_KEY = sodium.to_hex(signingKeyPair.publicKey);
+  sodiumReady = true;
+  console.log("Ed25519 signing initialized. Public key:", API_PUBLIC_KEY);
 }
 
-const signingKeyPair = getStableSigningKeyPair();
-const API_PUBLIC_KEY = Buffer.from(signingKeyPair.publicKey).toString("hex");
+initSodium();
 
 function padOwnerId(id: string): string {
   return id.padStart(10, "0");
@@ -31,10 +38,11 @@ function unpadOwnerId(id: string): string {
 
 function signResponse(body: string): { signature: string; timestamp: string } {
   const timestamp = String(Math.floor(Date.now() / 1000));
-  const message = Buffer.from(timestamp + body);
-  const sig = nacl.sign.detached(message, signingKeyPair.secretKey);
+  const message = timestamp + body;
+  const messageBytes = sodium.from_string(message);
+  const sig = sodium.crypto_sign_detached(messageBytes, signingKeyPair.privateKey);
   return {
-    signature: Buffer.from(sig).toString("hex"),
+    signature: sodium.to_hex(sig),
     timestamp,
   };
 }
