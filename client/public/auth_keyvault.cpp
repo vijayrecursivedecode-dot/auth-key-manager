@@ -309,7 +309,7 @@ void KeyAuth::api::login(std::string username, std::string password, std::string
                 }
 
                 LI_FN(GlobalAddAtomA)(ownerid.c_str());
-		LoggedIn.store(true);
+                LoggedIn.store(true);
             }
             else {
                 LI_FN(exit)(12);
@@ -489,11 +489,11 @@ KeyAuth::api::Tfa& KeyAuth::api::Tfa::handleInput(KeyAuth::api& instance) {
 
         std::cout << XorStr("Enter the code to disable 2FA: ");
 
-		std::string code;
-		std::cin >> code;
+                std::string code;
+                std::cin >> code;
 
-		instance.disable2fa(code);
-	}
+                instance.disable2fa(code);
+        }
 
 }
 
@@ -758,7 +758,7 @@ void KeyAuth::api::web_login()
                     }
 
                     LI_FN(GlobalAddAtomA)(ownerid.c_str());
-		    LoggedIn.store(true);
+                    LoggedIn.store(true);
                 }
                 else {
                     LI_FN(exit)(12);
@@ -1007,7 +1007,7 @@ void KeyAuth::api::regstr(std::string username, std::string password, std::strin
                 }
 
                 LI_FN(GlobalAddAtomA)(ownerid.c_str());
-		LoggedIn.store(true);
+                LoggedIn.store(true);
             }
             else {
                 LI_FN(exit)(12);
@@ -1133,7 +1133,7 @@ void KeyAuth::api::license(std::string key, std::string code) {
                 }
 
                 LI_FN(GlobalAddAtomA)(ownerid.c_str());
-		LoggedIn.store(true);
+                LoggedIn.store(true);
             }
             else {
                 LI_FN(exit)(12);
@@ -1707,7 +1707,7 @@ std::string KeyAuth::api::req(const std::string& data, const std::string& url) {
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_CERTINFO, 1L);
-    curl_easy_setopt(curl, CURLOPT_NOPROXY, XorStr("keyauth.win").c_str());
+    curl_easy_setopt(curl, CURLOPT_NOPROXY, "replit.app");
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &to_return);
@@ -1835,7 +1835,7 @@ void runChecks() {
    while (waitTime > 0) {
 
         if (LoggedIn.load()) {
-	    // If the user is logged in, proceed with the checks immediately
+            // If the user is logged in, proceed with the checks immediately
             break;
          }
          std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -1873,7 +1873,7 @@ void checkFiles() {
 }
 
 void checkRegistry() {
-	
+        
     while (true) {
         std::string regPath = XorStr("Software\\").c_str() + seed;
         HKEY hKey;
@@ -1883,7 +1883,7 @@ void checkRegistry() {
             LI_FN(__fastfail)(0);
         }
         LI_FN(RegCloseKey)(hKey);
-	Sleep(1500); // thread interval
+        Sleep(1500); // thread interval
     }
 }
 

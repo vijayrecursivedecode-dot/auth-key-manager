@@ -37,7 +37,7 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
   const secret = app.secret;
   const version = app.version || "1.0";
   const paddedOwnerId = ownerId.padStart(10, "0");
-  const apiUrl = window.location.origin + "/api/1.2/";
+  const apiUrl = window.location.origin + "/api/1.3/";
 
   switch (lang) {
     case "C#":
@@ -583,7 +583,7 @@ export default function AppSettingsPage() {
                         <p className="font-semibold">C++ Client Library</p>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Source-code replacement for KeyAuth C++ 1.3 library. Uses libsodium for Ed25519 signature verification.
+                        Drop-in replacement for the KeyAuth C++ auth.cpp file. Uses libsodium for Ed25519 signature verification.
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
                         File: <span className="font-mono">auth_keyvault.cpp</span>
@@ -613,7 +613,7 @@ export default function AppSettingsPage() {
                         <p className="font-semibold">C# Client Library</p>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Modified KeyAuth C# library with your server URL and public key. Includes Ed25519 verification.
+                        Drop-in replacement for the KeyAuth C# KeyAuth.cs file. Includes Ed25519 verification.
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
                         Files: <span className="font-mono">KeyAuth_KeyVault.cs</span> + <span className="font-mono">Ed25519.cs</span>
@@ -653,34 +653,136 @@ export default function AppSettingsPage() {
             </Card>
 
             <Card className="max-w-2xl p-6">
-              <h3 className="mb-1 font-semibold">Integration Guide</h3>
-              <p className="mb-4 text-sm text-muted-foreground">
-                How to use the downloaded SDK files in your project
+              <h3 className="mb-1 font-semibold">How to Switch from KeyAuth to KeyVault</h3>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Step-by-step guide to migrate your existing KeyAuth C++ or C# project
               </p>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <p className="text-sm font-medium">C++ Setup</p>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-                    <li>Replace the original <span className="font-mono">auth.cpp</span> / <span className="font-mono">auth.hpp</span> with <span className="font-mono">auth_keyvault.cpp</span></li>
-                    <li>Link against <span className="font-mono">libsodium</span> instead of the precompiled <span className="font-mono">library_x64.lib</span></li>
-                    <li>Use the initialization code from the Credentials tab</li>
-                  </ol>
+                  <p className="mb-3 text-sm font-semibold">C++ Project (DirectX / Win32 / Console)</p>
+                  <div className="space-y-3">
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 1: Download the file</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Click "Download .cpp" above to get <span className="font-mono">auth_keyvault.cpp</span>
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 2: Replace auth.cpp in your project</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        In your C++ project folder, find the file called <span className="font-mono">auth.cpp</span> (the original KeyAuth file). Delete it and put <span className="font-mono">auth_keyvault.cpp</span> in the same folder. Rename it to <span className="font-mono">auth.cpp</span>.
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 3: Add libsodium to your project</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Download libsodium from <span className="font-mono">libsodium.org</span>. Add the include and lib folders to your Visual Studio project. Replace <span className="font-mono">library_x64.lib</span> with <span className="font-mono">libsodium.lib</span> in your linker settings.
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 4: Update your main.cpp</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Change the initialization in your <span className="font-mono">main.cpp</span> to use your KeyVault credentials:
+                      </p>
+                      {selectedApp && (
+                        <div className="mt-2 rounded-md border bg-muted/50 p-3">
+                          <pre className="overflow-x-auto text-xs leading-relaxed">
+                            <code data-testid="text-cpp-setup-code">{`std::string name = "${selectedApp.name}";
+std::string ownerid = "${(user?.id || "").padStart(10, "0")}";
+std::string version = "${selectedApp.version || "1.0"}";
+std::string url = "${window.location.origin}/api/1.3/";
+std::string path = "";
+
+KeyAuth::api KeyAuthApp(name, ownerid, version, url, path);`}</code>
+                          </pre>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="mt-2"
+                            onClick={() => copyToClipboard(
+                              `std::string name = "${selectedApp.name}";\nstd::string ownerid = "${(user?.id || "").padStart(10, "0")}";\nstd::string version = "${selectedApp.version || "1.0"}";\nstd::string url = "${window.location.origin}/api/1.3/";\nstd::string path = "";\n\nKeyAuth::api KeyAuthApp(name, ownerid, version, url, path);`,
+                              "C++ init code"
+                            )}
+                            data-testid="button-copy-cpp-init"
+                          >
+                            <Copy className="mr-2 h-3 w-3" />
+                            Copy Code
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 5: Build and run</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Build your project. All KeyAuth functions (init, login, register, license, etc.) will work exactly the same way - they now connect to your KeyVault server instead of keyauth.win.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <p className="text-sm font-medium">C# Setup</p>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-                    <li>Replace the original <span className="font-mono">KeyAuth.cs</span> with <span className="font-mono">KeyAuth_KeyVault.cs</span></li>
-                    <li>Add <span className="font-mono">Ed25519.cs</span> to your project</li>
-                    <li>Use the initialization code from the Credentials tab</li>
-                  </ol>
+                <div className="border-t pt-6">
+                  <p className="mb-3 text-sm font-semibold">C# Project (.NET / WPF / Console)</p>
+                  <div className="space-y-3">
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 1: Download the files</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Click "Download .cs" and "Download Ed25519.cs" above to get both files
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 2: Replace KeyAuth.cs in your project</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        In your C# project, find <span className="font-mono">KeyAuth.cs</span> (the original KeyAuth file). Delete it. Add <span className="font-mono">KeyAuth_KeyVault.cs</span> and <span className="font-mono">Ed25519.cs</span> to your project.
+                      </p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 3: Update your Program.cs / main file</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Change the initialization to use your KeyVault credentials:
+                      </p>
+                      {selectedApp && (
+                        <div className="mt-2 rounded-md border bg-muted/50 p-3">
+                          <pre className="overflow-x-auto text-xs leading-relaxed">
+                            <code data-testid="text-cs-setup-code">{`public static api KeyAuthApp = new api(
+    name: "${selectedApp.name}",
+    ownerid: "${(user?.id || "").padStart(10, "0")}",
+    version: "${selectedApp.version || "1.0"}"
+);`}</code>
+                          </pre>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="mt-2"
+                            onClick={() => copyToClipboard(
+                              `public static api KeyAuthApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user?.id || "").padStart(10, "0")}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
+                              "C# init code"
+                            )}
+                            data-testid="button-copy-cs-init"
+                          >
+                            <Copy className="mr-2 h-3 w-3" />
+                            Copy Code
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-sm font-medium">Step 4: Build and run</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Build your project. All KeyAuth functions (init, login, register, license, etc.) will work exactly the same way - they now connect to your KeyVault server.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="rounded-md border bg-muted/50 p-4">
-                  <p className="text-xs text-muted-foreground">
-                    These SDK files have the server URL (<span className="font-mono">{window.location.origin}/api/1.3/</span>) and Ed25519 public signing key pre-configured. No additional configuration is needed beyond setting your app credentials.
-                  </p>
+                  <p className="text-sm font-medium mb-2">Important Notes</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                    <li>The class name stays <span className="font-mono">KeyAuth::api</span> in both C++ and C# - no code changes needed for your login/register/license calls</li>
+                    <li>Your API URL: <span className="font-mono">{window.location.origin}/api/1.3/</span></li>
+                    <li>Ed25519 public key is pre-configured in the SDK files</li>
+                    <li>All functions work the same as KeyAuth: init, login, register, license, upgrade, ban, check, logout, setvar, getvar, fetchStats, fetchOnline</li>
+                  </ul>
                 </div>
               </div>
             </Card>
