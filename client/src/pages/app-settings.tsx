@@ -22,7 +22,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink } from "lucide-react";
+import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink, Download, FileCode } from "lucide-react";
 import type { Application } from "@shared/schema";
 
 const SUPPORTED_LANGUAGES = [
@@ -41,15 +41,15 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
 
   switch (lang) {
     case "C#":
-      return `public static api KeyVaultApp = new api(
+      return `// Use KeyAuth_KeyVault.cs + Ed25519.cs from SDK Downloads tab
+public static api KeyVaultApp = new api(
     name: "${name}",
     ownerid: "${paddedOwnerId}",
-    secret: "${secret}",
-    version: "${version}",
-    url: "${apiUrl}"
+    version: "${version}"
 );`;
     case "C++":
-      return `std::string name = "${name}";
+      return `// Use auth_keyvault.cpp from SDK Downloads tab
+std::string name = "${name}";
 std::string ownerid = "${paddedOwnerId}";
 std::string version = "${version}";
 std::string url = "${window.location.origin}/api/1.3/";
@@ -297,6 +297,9 @@ export default function AppSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="credentials" data-testid="tab-credentials">
               Credentials
+            </TabsTrigger>
+            <TabsTrigger value="sdk" data-testid="tab-sdk">
+              SDK Downloads
             </TabsTrigger>
           </TabsList>
 
@@ -562,6 +565,125 @@ export default function AppSettingsPage() {
                 </div>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="sdk" className="mt-4 space-y-4">
+            <Card className="max-w-2xl p-6">
+              <h3 className="mb-1 font-semibold">Client SDK Downloads</h3>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Download pre-configured client libraries with your server's URL and signing key already embedded. Drop these files into your project to get started.
+              </p>
+
+              <div className="space-y-4">
+                <div className="rounded-md border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <FileCode className="h-5 w-5 text-muted-foreground" />
+                        <p className="font-semibold">C++ Client Library</p>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Source-code replacement for KeyAuth C++ 1.3 library. Uses libsodium for Ed25519 signature verification.
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        File: <span className="font-mono">auth_keyvault.cpp</span>
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = "/auth_keyvault.cpp";
+                        a.download = "auth_keyvault.cpp";
+                        a.click();
+                      }}
+                      data-testid="button-download-cpp"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download .cpp
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-md border p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <FileCode className="h-5 w-5 text-muted-foreground" />
+                        <p className="font-semibold">C# Client Library</p>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Modified KeyAuth C# library with your server URL and public key. Includes Ed25519 verification.
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Files: <span className="font-mono">KeyAuth_KeyVault.cs</span> + <span className="font-mono">Ed25519.cs</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = "/KeyAuth_KeyVault.cs";
+                          a.download = "KeyAuth_KeyVault.cs";
+                          a.click();
+                        }}
+                        data-testid="button-download-cs"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download .cs
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = "/Ed25519.cs";
+                          a.download = "Ed25519.cs";
+                          a.click();
+                        }}
+                        data-testid="button-download-ed25519"
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Ed25519.cs
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="max-w-2xl p-6">
+              <h3 className="mb-1 font-semibold">Integration Guide</h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                How to use the downloaded SDK files in your project
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium">C++ Setup</p>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+                    <li>Replace the original <span className="font-mono">auth.cpp</span> / <span className="font-mono">auth.hpp</span> with <span className="font-mono">auth_keyvault.cpp</span></li>
+                    <li>Link against <span className="font-mono">libsodium</span> instead of the precompiled <span className="font-mono">library_x64.lib</span></li>
+                    <li>Use the initialization code from the Credentials tab</li>
+                  </ol>
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium">C# Setup</p>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+                    <li>Replace the original <span className="font-mono">KeyAuth.cs</span> with <span className="font-mono">KeyAuth_KeyVault.cs</span></li>
+                    <li>Add <span className="font-mono">Ed25519.cs</span> to your project</li>
+                    <li>Use the initialization code from the Credentials tab</li>
+                  </ol>
+                </div>
+
+                <div className="rounded-md border bg-muted/50 p-4">
+                  <p className="text-xs text-muted-foreground">
+                    These SDK files have the server URL (<span className="font-mono">{window.location.origin}/api/1.3/</span>) and Ed25519 public signing key pre-configured. No additional configuration is needed beyond setting your app credentials.
+                  </p>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
