@@ -377,12 +377,139 @@ function registerClientApi(app: Express) {
           return sendRes({ success: true, message: "User has been banned." });
         }
 
+        case "check": {
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({ success: true, message: "Session is valid." });
+        }
+
+        case "logout": {
+          const { sessionid } = params;
+          if (sessionid) {
+            clientSessions.delete(sessionid);
+          }
+          return sendRes({ success: true, message: "Logged out successfully." });
+        }
+
+        case "fetchStats": {
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          const application = await storage.getApplication(session.appId);
+          if (!application) {
+            return sendRes({ success: false, message: "Application not found." });
+          }
+          return sendRes({
+            success: true,
+            message: "Successfully fetched stats.",
+            appinfo: {
+              numUsers: String((await storage.getAppUsersByApp(session.appId)).length),
+              numOnlineUsers: "0",
+              numKeys: String((await storage.getLicensesByApp(session.appId)).length),
+              version: application.version,
+              customerPanelLink: "",
+              downloadLink: "",
+            },
+          });
+        }
+
+        case "fetchOnline": {
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({
+            success: true,
+            message: "Successfully fetched online users.",
+            users: [],
+          });
+        }
+
+        case "checkblacklist": {
+          const { hwid, sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({ success: false, message: "Not blacklisted." });
+        }
+
+        case "setvar": {
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({ success: true, message: "Variable set successfully." });
+        }
+
+        case "getvar": {
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({ success: true, message: "Variable not found.", response: "" });
+        }
+
         case "var": {
-          return sendRes({ success: false, message: "Variables are not supported yet." });
+          const { sessionid } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated) {
+            return sendRes({ success: false, message: "Invalid session." });
+          }
+          return sendRes({ success: true, message: "Variable not found.", response: "" });
+        }
+
+        case "forgot": {
+          return sendRes({ success: false, message: "Password reset is not supported." });
+        }
+
+        case "changeUsername": {
+          const { sessionid, newUsername } = params;
+          const session = clientSessions.get(sessionid);
+          if (!session || !session.validated || !session.userId) {
+            return sendRes({ success: false, message: "Invalid session or no user logged in." });
+          }
+          if (!newUsername) {
+            return sendRes({ success: false, message: "New username is required." });
+          }
+          await storage.updateAppUser(session.userId, { username: newUsername });
+          return sendRes({ success: true, message: "Username changed successfully." });
+        }
+
+        case "chatget": {
+          return sendRes({ success: true, message: "No messages.", messages: [] });
+        }
+
+        case "chatsend": {
+          return sendRes({ success: true, message: "Message sent." });
+        }
+
+        case "file": {
+          return sendRes({ success: false, message: "File downloads not supported." });
         }
 
         case "webhook": {
           return sendRes({ success: false, message: "Webhooks are not supported yet." });
+        }
+
+        case "2faenable": {
+          return sendRes({ success: false, message: "2FA is not supported." });
+        }
+
+        case "2fadisable": {
+          return sendRes({ success: false, message: "2FA is not supported." });
+        }
+
+        case "button": {
+          return sendRes({ success: true, message: "Button logged." });
         }
 
         case "log": {

@@ -56,7 +56,7 @@ namespace KeyAuth
 
             this.version = version;
 
-	        this.path = path;
+                this.path = path;
         }
 
         #region structures
@@ -184,8 +184,8 @@ namespace KeyAuth
                 ["ownerid"] = ownerid
             };
 
-	       if (!string.IsNullOrEmpty(path))
- 	       {
+               if (!string.IsNullOrEmpty(path))
+               {
                 values_to_upload.Add("token", File.ReadAllText(path));
                 values_to_upload.Add("thash", TokenHash(path));
            }
@@ -393,7 +393,7 @@ namespace KeyAuth
             }
         }
 
-	public void logout()
+        public void logout()
         {                                       
             CheckInit();
 
@@ -1143,7 +1143,7 @@ namespace KeyAuth
             Console.ReadKey();
             Environment.Exit(0);
         }
-	    
+            
         private static string req(NameValueCollection post_data)
         {
             try
@@ -1186,10 +1186,10 @@ namespace KeyAuth
 
         private static bool assertSSL(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         { 
-            if ((!certificate.Issuer.Contains("Google Trust Services") && !certificate.Issuer.Contains("Let's Encrypt")) || sslPolicyErrors != SslPolicyErrors.None)
+            if (sslPolicyErrors != SslPolicyErrors.None)
             {
-                error("SSL assertion fail, make sure you're not debugging Network. Disable internet firewall on router if possible. & echo: & echo If not, ask the developer of the program to use custom domains to fix this.");
-                Logger.LogEvent("SSL assertion fail, make sure you're not debugging Network. Disable internet firewall on router if possible. If not, ask the developer of the program to use custom domains to fix this.");
+                error("SSL assertion fail, make sure you're not debugging Network. Disable internet firewall on router if possible.");
+                Logger.LogEvent("SSL assertion fail, make sure you're not debugging Network. Disable internet firewall on router if possible.");
                 return false;
             }
             return true;
