@@ -677,47 +677,12 @@ export default function AppSettingsPage() {
             <Card className="max-w-2xl p-6">
               <h3 className="mb-1 font-semibold">Quick Setup: Use Your Existing KeyAuth Project</h3>
               <p className="mb-5 text-sm text-muted-foreground">
-                Already have KeyAuth in your C++ or C# project? Two quick changes and you're done.
+                Already have KeyAuth in your C++ or C# project? Just update your main file - no need to touch auth.cpp or KeyAuth.cs.
               </p>
 
               <div className="space-y-6">
-                <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
-                  <p className="text-sm font-semibold mb-2">Required: Update the Public Key in auth.cpp</p>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Open your <span className="font-mono">auth.cpp</span> and find this line near the top:
-                  </p>
-                  <div className="rounded-md border bg-muted/50 p-3 mb-3">
-                    <pre className="overflow-x-auto text-xs leading-relaxed">
-                      <code className="text-destructive/80">{`// OLD (KeyAuth's key - remove this)
-std::string API_PUBLIC_KEY = "5586b4bc69c7a4b487e4563a4cd96afd39140f919bd31cea7d1c6a1e8439422b";`}</code>
-                    </pre>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">Replace it with your KeyVault public key:</p>
-                  <div className="rounded-md border bg-muted/50 p-3">
-                    <pre className="overflow-x-auto text-xs leading-relaxed">
-                      <code data-testid="text-public-key-line">{`std::string API_PUBLIC_KEY = "${publicKeyData?.publicKey || "loading..."}";`}</code>
-                    </pre>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="mt-2"
-                      onClick={() => copyToClipboard(
-                        `std::string API_PUBLIC_KEY = "${publicKeyData?.publicKey || ""}";`,
-                        "Public key line"
-                      )}
-                      data-testid="button-copy-public-key-line"
-                    >
-                      <Copy className="mr-2 h-3 w-3" />
-                      Copy Line
-                    </Button>
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    This is needed because each server has its own signing key. Without this change you will get "Signature verification failed (invalid signature)".
-                  </p>
-                </div>
-
                 <div>
-                  <p className="mb-3 text-sm font-semibold">C++ Project - Update main.cpp</p>
+                  <p className="mb-3 text-sm font-semibold">C++ Project - Update main.cpp only</p>
                   <div className="space-y-3">
                     <div className="rounded-md border p-3">
                       <p className="text-sm font-medium">Find these lines in your main.cpp and update them:</p>
@@ -785,18 +750,37 @@ std::string path = "";`}</code>
                 <div className="rounded-md border bg-muted/50 p-4">
                   <p className="text-sm font-medium mb-2">Summary: What to Change</p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                    <li><span className="font-mono">auth.cpp</span>: Change <span className="font-mono">API_PUBLIC_KEY</span> to your KeyVault public key (one line)</li>
-                    <li><span className="font-mono">main.cpp</span>: Change name, ownerid, url (three values)</li>
-                    <li>Everything else stays the same - all KeyAuth functions work: init, login, register, license, upgrade, ban, check, logout</li>
+                    <li><span className="font-mono">auth.cpp</span> / <span className="font-mono">KeyAuth.cs</span>: No changes needed - keep your original files</li>
+                    <li><span className="font-mono">main.cpp</span> / <span className="font-mono">Program.cs</span>: Change name, ownerid, version, and url</li>
+                    <li>HMAC signature verification works automatically with your existing code</li>
+                    <li>All functions work: init, login, register, license, upgrade, ban, check, logout</li>
                     <li>Your API URL: <span className="font-mono">{window.location.origin}/api/1.3/</span></li>
                   </ul>
                 </div>
 
                 <div className="border-t pt-4">
-                  <p className="text-sm font-medium mb-2">Optional: Use KeyVault SDK Instead</p>
-                  <p className="text-sm text-muted-foreground">
-                    If you want enhanced security with Ed25519 signature verification, download the KeyVault SDK files above and replace your auth.cpp / KeyAuth.cs. This is optional - your original KeyAuth files work fine.
+                  <p className="text-sm font-medium mb-2">New Ed25519 clients only</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    If your auth.cpp has <span className="font-mono">API_PUBLIC_KEY</span> (newer versions with Ed25519), change it to:
                   </p>
+                  <div className="rounded-md border bg-muted/50 p-3">
+                    <pre className="overflow-x-auto text-xs leading-relaxed">
+                      <code data-testid="text-public-key-line">{`std::string API_PUBLIC_KEY = "${publicKeyData?.publicKey || "loading..."}";`}</code>
+                    </pre>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="mt-2"
+                      onClick={() => copyToClipboard(
+                        `std::string API_PUBLIC_KEY = "${publicKeyData?.publicKey || ""}";`,
+                        "Public key line"
+                      )}
+                      data-testid="button-copy-public-key-line"
+                    >
+                      <Copy className="mr-2 h-3 w-3" />
+                      Copy Line
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
