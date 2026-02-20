@@ -975,6 +975,56 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/app-users/bulk-delete", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mode, ids } = req.body;
+      const allUsers = await storage.getAppUsersByOwner(userId);
+      let toDelete: typeof allUsers = [];
+      if (mode === "all") {
+        toDelete = allUsers;
+      } else if (mode === "expired") {
+        toDelete = allUsers.filter((u) => u.expiresAt && new Date(u.expiresAt) < new Date());
+      } else if (mode === "banned") {
+        toDelete = allUsers.filter((u) => u.banned);
+      } else if (mode === "selected" && Array.isArray(ids)) {
+        toDelete = allUsers.filter((u) => ids.includes(u.id));
+      }
+      for (const u of toDelete) {
+        await storage.deleteAppUser(u.id);
+      }
+      res.json({ success: true, deleted: toDelete.length });
+    } catch (error) {
+      console.error("Error bulk deleting users:", error);
+      res.status(500).json({ message: "Failed to delete users" });
+    }
+  });
+
+  app.post("/api/app-users/reset-hwid", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mode, ids } = req.body;
+      const allUsers = await storage.getAppUsersByOwner(userId);
+      let toReset: typeof allUsers = [];
+      if (mode === "all") {
+        toReset = allUsers;
+      } else if (mode === "selected" && Array.isArray(ids)) {
+        toReset = allUsers.filter((u) => ids.includes(u.id));
+      }
+      let count = 0;
+      for (const u of toReset) {
+        if (u.hwid) {
+          await storage.updateAppUser(u.id, { hwid: null });
+          count++;
+        }
+      }
+      res.json({ success: true, reset: count });
+    } catch (error) {
+      console.error("Error resetting HWIDs:", error);
+      res.status(500).json({ message: "Failed to reset HWIDs" });
+    }
+  });
+
   app.get("/api/tokens", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
