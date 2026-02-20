@@ -44,6 +44,7 @@ export default function LoginPage() {
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
         return;
       }
+      playErrorSound();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/dashboard");
     } catch {
