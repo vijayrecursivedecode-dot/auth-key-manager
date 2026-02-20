@@ -1126,6 +1126,31 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/tokens/bulk-delete", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mode, ids } = req.body;
+      const allTokens = await storage.getTokensByOwner(userId);
+      let toDelete: typeof allTokens = [];
+      if (mode === "all") {
+        toDelete = allTokens;
+      } else if (mode === "used") {
+        toDelete = allTokens.filter((t) => t.used);
+      } else if (mode === "unused") {
+        toDelete = allTokens.filter((t) => !t.used);
+      } else if (mode === "selected" && Array.isArray(ids)) {
+        toDelete = allTokens.filter((t) => ids.includes(t.id));
+      }
+      for (const t of toDelete) {
+        await storage.deleteToken(t.id);
+      }
+      res.json({ success: true, deleted: toDelete.length });
+    } catch (error) {
+      console.error("Error bulk deleting tokens:", error);
+      res.status(500).json({ message: "Failed to delete tokens" });
+    }
+  });
+
   app.delete("/api/tokens/:id", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
