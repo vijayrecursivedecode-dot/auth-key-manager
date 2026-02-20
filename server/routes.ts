@@ -867,6 +867,50 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/licenses/bulk-delete", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mode } = req.body;
+      const allLicenses = await storage.getLicensesByOwner(userId);
+      let toDelete: typeof allLicenses = [];
+      if (mode === "all") {
+        toDelete = allLicenses;
+      } else if (mode === "unused") {
+        toDelete = allLicenses.filter((l) => (l.usedCount ?? 0) === 0);
+      } else if (mode === "used") {
+        toDelete = allLicenses.filter((l) => (l.usedCount ?? 0) > 0);
+      } else if (mode === "selected" && Array.isArray(req.body.ids)) {
+        toDelete = allLicenses.filter((l) => req.body.ids.includes(l.id));
+      }
+      for (const lic of toDelete) {
+        await storage.deleteLicense(lic.id);
+      }
+      res.json({ success: true, deleted: toDelete.length });
+    } catch (error) {
+      console.error("Error bulk deleting licenses:", error);
+      res.status(500).json({ message: "Failed to delete licenses" });
+    }
+  });
+
+  app.post("/api/licenses/extend", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { unit, duration } = req.body;
+      const allLicenses = await storage.getLicensesByOwner(userId);
+      const unused = allLicenses.filter((l) => (l.usedCount ?? 0) === 0);
+      let count = 0;
+      for (const lic of unused) {
+        const newDuration = (lic.duration ?? 0) + parseInt(duration);
+        await storage.updateLicense(lic.id, { duration: newDuration, durationUnit: unit });
+        count++;
+      }
+      res.json({ success: true, extended: count });
+    } catch (error) {
+      console.error("Error extending licenses:", error);
+      res.status(500).json({ message: "Failed to extend licenses" });
+    }
+  });
+
   app.get("/api/app-users", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
