@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
@@ -86,7 +85,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showTurnstile, setShowTurnstile] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const turnstileWidgetId = useRef<string | null>(null);
@@ -119,18 +118,26 @@ export default function RegisterPage() {
     turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
       sitekey: TURNSTILE_SITE_KEY,
       theme: "dark",
-      callback: (token: string) => setTurnstileToken(token),
+      callback: (token: string) => {
+        setTurnstileToken(token);
+      },
       "error-callback": () => setTurnstileToken(null),
       "expired-callback": () => setTurnstileToken(null),
     });
   }, []);
 
   useEffect(() => {
-    if (showTurnstile && turnstileReady) {
+    if (showVerification && turnstileReady) {
       const timer = setTimeout(renderTurnstile, 100);
       return () => clearTimeout(timer);
     }
-  }, [showTurnstile, turnstileReady, renderTurnstile]);
+  }, [showVerification, turnstileReady, renderTurnstile]);
+
+  useEffect(() => {
+    if (showVerification && turnstileToken) {
+      handleSubmit();
+    }
+  }, [turnstileToken, showVerification]);
 
   function handleRegisterClick(e: React.FormEvent) {
     e.preventDefault();
@@ -150,7 +157,7 @@ export default function RegisterPage() {
       handleSubmit();
       return;
     }
-    setShowTurnstile(true);
+    setShowVerification(true);
   }
 
   async function handleSubmit() {
@@ -170,20 +177,49 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) {
         toast({ title: "Registration failed", description: data.message, variant: "destructive" });
-        setShowTurnstile(false);
+        setShowVerification(false);
         setTurnstileToken(null);
         return;
       }
-      setShowTurnstile(false);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/dashboard");
     } catch {
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
-      setShowTurnstile(false);
+      setShowVerification(false);
       setTurnstileToken(null);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (showVerification) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-4">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+              <Shield className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <span className="text-4xl font-bold tracking-tight italic text-white" data-testid="text-brand-verify">KeyAuth Manager</span>
+          </div>
+
+          <h2 className="text-xl font-semibold text-white text-center">
+            Please wait while we validate your connection.
+          </h2>
+
+          <div ref={turnstileContainerRef} data-testid="turnstile-widget" />
+
+          <Button
+            variant="outline"
+            className="w-64 border-gray-700 bg-gray-900 text-white hover:bg-gray-800"
+            onClick={() => { setShowVerification(false); setTurnstileToken(null); }}
+            data-testid="button-back-register"
+          >
+            Back to Register
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -260,26 +296,6 @@ export default function RegisterPage() {
           </p>
         </Card>
       </div>
-
-      <Dialog open={showTurnstile} onOpenChange={(open) => { if (!open) { setShowTurnstile(false); setTurnstileToken(null); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">Security Check</DialogTitle>
-            <p className="text-center text-sm text-muted-foreground">Please verify you are human to proceed.</p>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div ref={turnstileContainerRef} data-testid="turnstile-widget" />
-            <Button
-              className="w-full"
-              onClick={() => handleSubmit()}
-              disabled={!turnstileToken || isLoading}
-              data-testid="button-verify-register"
-            >
-              {isLoading ? "Verifying..." : "Continue"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

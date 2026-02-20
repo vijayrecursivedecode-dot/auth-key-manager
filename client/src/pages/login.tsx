@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
@@ -29,7 +28,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showTurnstile, setShowTurnstile] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
   const turnstileWidgetId = useRef<string | null>(null);
@@ -59,7 +58,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
-    if (document.getElementById("turnstile-script")) return;
+    if (document.getElementById("turnstile-script")) {
+      if (window.turnstile) setTurnstileReady(true);
+      return;
+    }
     const script = document.createElement("script");
     script.id = "turnstile-script";
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
@@ -81,18 +83,26 @@ export default function LoginPage() {
     turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
       sitekey: TURNSTILE_SITE_KEY,
       theme: "dark",
-      callback: (token: string) => setTurnstileToken(token),
+      callback: (token: string) => {
+        setTurnstileToken(token);
+      },
       "error-callback": () => setTurnstileToken(null),
       "expired-callback": () => setTurnstileToken(null),
     });
   }, []);
 
   useEffect(() => {
-    if (showTurnstile && turnstileReady) {
+    if (showVerification && turnstileReady) {
       const timer = setTimeout(renderTurnstile, 100);
       return () => clearTimeout(timer);
     }
-  }, [showTurnstile, turnstileReady, renderTurnstile]);
+  }, [showVerification, turnstileReady, renderTurnstile]);
+
+  useEffect(() => {
+    if (showVerification && turnstileToken) {
+      handleSubmit();
+    }
+  }, [turnstileToken, showVerification]);
 
   function handleLoginClick(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +111,7 @@ export default function LoginPage() {
       handleSubmit();
       return;
     }
-    setShowTurnstile(true);
+    setShowVerification(true);
   }
 
   async function handleSubmit() {
@@ -121,23 +131,52 @@ export default function LoginPage() {
       if (!res.ok) {
         playErrorSound();
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
-        setShowTurnstile(false);
+        setShowVerification(false);
         setTurnstileToken(null);
         return;
       }
       playSuccessSound();
-      setShowTurnstile(false);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       await new Promise((r) => setTimeout(r, 500));
       setLocation("/dashboard");
     } catch {
       playErrorSound();
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
-      setShowTurnstile(false);
+      setShowVerification(false);
       setTurnstileToken(null);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (showVerification) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-4">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+              <Shield className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <span className="text-4xl font-bold tracking-tight italic text-white" data-testid="text-brand-verify">KeyAuth Manager</span>
+          </div>
+
+          <h2 className="text-xl font-semibold text-white text-center">
+            Please wait while we validate your connection.
+          </h2>
+
+          <div ref={turnstileContainerRef} data-testid="turnstile-widget" />
+
+          <Button
+            variant="outline"
+            className="w-64 border-gray-700 bg-gray-900 text-white hover:bg-gray-800"
+            onClick={() => { setShowVerification(false); setTurnstileToken(null); }}
+            data-testid="button-back-login"
+          >
+            Back to Login
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -203,26 +242,6 @@ export default function LoginPage() {
           </p>
         </Card>
       </div>
-
-      <Dialog open={showTurnstile} onOpenChange={(open) => { if (!open) { setShowTurnstile(false); setTurnstileToken(null); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">Security Check</DialogTitle>
-            <p className="text-center text-sm text-muted-foreground">Please verify you are human to proceed.</p>
-          </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <div ref={turnstileContainerRef} data-testid="turnstile-widget" />
-            <Button
-              className="w-full"
-              onClick={() => handleSubmit()}
-              disabled={!turnstileToken || isLoading}
-              data-testid="button-verify-login"
-            >
-              {isLoading ? "Verifying..." : "Continue"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
