@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { randomUUID, createHash, createHmac } from "crypto";
+import { randomUUID, createHash, createHmac, createSign, privateDecrypt, constants } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import sodium from "libsodium-wrappers";
@@ -1043,6 +1043,154 @@ export async function registerRoutes(
       console.error("Error deleting token:", error);
       res.status(500).json({ message: "Failed to delete token" });
     }
+  });
+
+  // =======================================================================
+  // LKTEAM APK Protocol Endpoint (powercheat.php compatible)
+  // =======================================================================
+  const POWER_PRIVATE_KEY = process.env.POWER_RSA_PRIVATE_KEY || "";
+
+  function lkXorEncrypt(data: string, hash: string): Buffer {
+    const buf = Buffer.alloc(data.length);
+    for (let i = 0; i < data.length; i++) {
+      buf[i] = data.charCodeAt(i) ^ hash.charCodeAt(i % hash.length);
+    }
+    return buf;
+  }
+
+  function sendLkResponse(res: any, data: { msg: string; user: string }, isSuccess: boolean, origTok: string, privKeyPem: string) {
+    const payload: any = {
+      ConnectSt_hk: isSuccess ? "HasBeenSucceeded" : "Failed",
+      Logged_UserHK: data.user || "",
+      Logged_TokHK: origTok,
+      MessageFromSv: data.msg || "",
+      piddaemon: "1",
+      Status_hk: isSuccess ? "1" : "0",
+      time: String(Math.floor(Date.now() / 1000)),
+    };
+
+    const jsonStr = JSON.stringify(payload);
+
+    const signer = createSign("SHA256");
+    signer.update(jsonStr);
+    const signature = signer.sign(privKeyPem);
+
+    const hash = createHash("sha256").update(jsonStr).digest("hex");
+
+    const encrypted = lkXorEncrypt(jsonStr, hash);
+
+    const finalResponse = {
+      Dados_hk: encrypted.toString("base64"),
+      Hash_hk: hash,
+      Sign_hk: signature.toString("base64"),
+    };
+
+    res.set("Content-Type", "text/plain");
+    return res.send(Buffer.from(JSON.stringify(finalResponse)).toString("base64"));
+  }
+
+  app.post("/powercheat.php", async (req: any, res: any) => {
+    if (!POWER_PRIVATE_KEY) {
+      return res.status(500).send("Server Error: Private key not configured");
+    }
+
+    const tokserverHk = req.body?.tokserver_hk;
+    if (!tokserverHk) {
+      res.set("Content-Type", "text/plain");
+      return res.send("Made By Powercheatsowner\nTelegram: @Powercheatsowner");
+    }
+
+    try {
+      const envelope = JSON.parse(Buffer.from(tokserverHk, "base64").toString("utf8"));
+      if (!envelope.Dados_hk) {
+        return res.status(400).send("Invalid Request Format");
+      }
+
+      const encryptedData = Buffer.from(envelope.Dados_hk, "base64");
+      let decryptedJson: Buffer;
+      try {
+        decryptedJson = privateDecrypt(
+          { key: POWER_PRIVATE_KEY, padding: constants.RSA_PKCS1_PADDING },
+          encryptedData
+        );
+      } catch (e) {
+        return res.status(400).send("Security Error: Decryption Failed");
+      }
+
+      const reqData = JSON.parse(decryptedJson.toString("utf8"));
+      const userKey = reqData.User_hk || "";
+      const serial = reqData.Uid_hk || "";
+      const reqTok = envelope.Tok_hk || "NATIVE_DRM";
+
+      if (!userKey || !serial) {
+        return sendLkResponse(res, { msg: "Invalid Parameters", user: userKey }, false, reqTok, POWER_PRIVATE_KEY);
+      }
+
+      console.log(`[POWERCHEAT] Login attempt: key=${userKey} hwid=${serial}`);
+
+      const license = await storage.getLicenseByKeyGlobal(userKey);
+
+      if (!license) {
+        return sendLkResponse(res, { msg: "Key Not Found", user: userKey }, false, reqTok, POWER_PRIVATE_KEY);
+      }
+
+      if (!license.enabled) {
+        return sendLkResponse(res, { msg: "KEY BANNED / LOCKED", user: userKey }, false, reqTok, POWER_PRIVATE_KEY);
+      }
+
+      if (license.usedBy) {
+        const existingHwids = license.usedBy.split(",").filter((s: string) => s.trim());
+        if (!existingHwids.includes(serial)) {
+          const maxUses = license.maxUses || 1;
+          if (existingHwids.length >= maxUses) {
+            return sendLkResponse(res, { msg: "MAX DEVICES REACHED", user: userKey }, false, reqTok, POWER_PRIVATE_KEY);
+          }
+          existingHwids.push(serial);
+          await storage.updateLicense(license.id, { usedBy: existingHwids.join(","), usedCount: existingHwids.length });
+        }
+      } else {
+        await storage.updateLicense(license.id, { usedBy: serial, usedCount: 1 });
+      }
+
+      if (!license.expiresAt) {
+        const dur = license.duration || 1;
+        const unit = license.durationUnit || "day";
+        const now = new Date();
+        if (unit === "hour") now.setHours(now.getHours() + dur);
+        else if (unit === "day") now.setDate(now.getDate() + dur);
+        else if (unit === "week") now.setDate(now.getDate() + dur * 7);
+        else if (unit === "month") now.setMonth(now.getMonth() + dur);
+        else if (unit === "year") now.setFullYear(now.getFullYear() + dur);
+        await storage.updateLicense(license.id, { expiresAt: now });
+      } else if (new Date(license.expiresAt) < new Date()) {
+        return sendLkResponse(res, { msg: "KEY EXPIRED", user: userKey }, false, reqTok, POWER_PRIVATE_KEY);
+      }
+
+      return sendLkResponse(res, { msg: "Login Success", user: userKey }, true, reqTok, POWER_PRIVATE_KEY);
+
+    } catch (error: any) {
+      console.error("[POWERCHEAT] Error:", error.message);
+      return res.status(500).send("Server Error");
+    }
+  });
+
+  app.get("/powercheat.php", (req: any, res: any) => {
+    res.set("Content-Type", "text/plain");
+    res.send("Made By Powercheatsowner\nTelegram: @Powercheatsowner");
+  });
+
+  app.get("/power_public.pem", (req: any, res: any) => {
+    const pubKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtcQ0WXeqzxDF3HXS8MPg
+LZ/G2HWwFldTqaUkb0sBCukfclmvsz7GuzwLZnK9PsmCOA7w9r+JXUs79EOCm79Q
+/QEXtlu+CFCKQnkr74Jfn1Q4Sb3GdUpzhYqpKHdxTxNIKK7ckUk9E0pEd/GvKXNZ
+9vBnMyN9mKtFQSfJt+FImOEmm7jUY3FIFWgWvH5J7PkcMeOBT5Uckgve4IVfJ8p+
+Xz7DLDlC6H3LtXoX9NEGIoHz5DFhj85wtwiN1hcp8INqHcb4wDreEecZjAnyjhsV
+kovcFWTi93I/o1nbF/7a5CvpVTxr8jJH+npp1rTCUN7IAzBqxpPR6FOm7bWGKS4t
+swIDAQAB
+-----END PUBLIC KEY-----`;
+    res.set("Content-Type", "application/x-pem-file");
+    res.send(pubKey);
   });
 
   return httpServer;

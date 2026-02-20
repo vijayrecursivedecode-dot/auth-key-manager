@@ -59,6 +59,7 @@ export interface IStorage {
 
   getLicense(id: string): Promise<License | undefined>;
   getLicenseByKey(licenseKey: string, appId: string): Promise<License | undefined>;
+  getLicenseByKeyGlobal(licenseKey: string): Promise<License | undefined>;
   getLicensesByOwner(ownerId: string): Promise<License[]>;
   getLicensesByApp(appId: string): Promise<License[]>;
   createLicenses(data: InsertLicense, count: number): Promise<License[]>;
@@ -148,6 +149,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(licenses)
       .where(and(eq(licenses.licenseKey, licenseKey), eq(licenses.appId, appId)));
+    return lic;
+  }
+
+  async getLicenseByKeyGlobal(licenseKey: string): Promise<License | undefined> {
+    const [lic] = await db
+      .select()
+      .from(licenses)
+      .where(eq(licenses.licenseKey, licenseKey));
     return lic;
   }
 
