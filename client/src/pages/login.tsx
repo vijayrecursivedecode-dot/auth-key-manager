@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import loginErrorSound from "@assets/login-error_1771588547644.mp3";
+import loginSuccessSound from "@assets/ElevenLabs_2026_02_20T12_28_13_Gojo_Calm,_Clear_and_Measured_p_1771590685418.mp3";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const errorAudioRef = useRef<HTMLAudioElement | null>(null);
+  const successAudioRef = useRef<HTMLAudioElement | null>(null);
 
   function playErrorSound() {
     try {
@@ -23,6 +25,16 @@ export default function LoginPage() {
       }
       errorAudioRef.current.currentTime = 0;
       errorAudioRef.current.play().catch(() => {});
+    } catch {}
+  }
+
+  function playSuccessSound() {
+    try {
+      if (!successAudioRef.current) {
+        successAudioRef.current = new Audio(loginSuccessSound);
+      }
+      successAudioRef.current.currentTime = 0;
+      successAudioRef.current.play().catch(() => {});
     } catch {}
   }
 
@@ -44,7 +56,7 @@ export default function LoginPage() {
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
         return;
       }
-      playErrorSound();
+      playSuccessSound();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       await new Promise((r) => setTimeout(r, 500));
       setLocation("/dashboard");
