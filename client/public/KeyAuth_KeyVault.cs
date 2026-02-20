@@ -20,9 +20,9 @@ namespace KeyVault
     public class api
     {
         public string name, ownerid, secret, version;
-        public static string ApiUrl = "https://YOUR_REPLIT_URL_HERE/api/1.2/";
+        public static string ApiUrl = "";
         public static long responseTime;
-        public api(string name, string ownerid, string secret, string version)
+        public api(string name, string ownerid, string secret, string version, string apiUrl)
         {
             this.name = name;
 
@@ -31,6 +31,8 @@ namespace KeyVault
             this.secret = secret;
 
             this.version = version;
+
+            ApiUrl = apiUrl;
         }
 
         #region structures

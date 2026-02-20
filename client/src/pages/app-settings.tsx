@@ -41,15 +41,14 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
 
   switch (lang) {
     case "C#":
-      return `// Use KeyAuth_KeyVault.cs from SDK Downloads tab
-// Set the API URL before creating the instance:
-KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";
-
-public static api KeyVaultApp = new api(
+      return `// Replace your existing KeyAuth.cs with KeyAuth_KeyVault.cs from SDK Downloads tab
+// Then update your initialization:
+public static KeyVault.api KeyVaultApp = new KeyVault.api(
     name: "${name}",
     ownerid: "${paddedOwnerId}",
     secret: "${secret}",
-    version: "${version}"
+    version: "${version}",
+    apiUrl: "${window.location.origin}/api/1.2/"
 );`;
     case "C++":
       return `// Use auth_keyvault.cpp from SDK Downloads tab
