@@ -619,7 +619,7 @@ export default function LicensesPage() {
       </Card>
 
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Generate Licenses</DialogTitle>
           </DialogHeader>
