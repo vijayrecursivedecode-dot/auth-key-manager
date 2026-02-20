@@ -811,7 +811,7 @@ export async function registerRoutes(
   app.post("/api/licenses", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { appId, count, duration, durationUnit, level, maxUses, note } = req.body;
+      const { appId, count, duration, durationUnit, level, maxUses, note, mask, useLowercase, useUppercase } = req.body;
       if (!appId) return res.status(400).json({ message: "Application is required" });
       const existing = await storage.getApplication(appId);
       if (!existing || existing.ownerId !== userId) {
@@ -829,7 +829,10 @@ export async function registerRoutes(
           enabled: true,
           expiresAt: null,
         },
-        licCount
+        licCount,
+        mask || undefined,
+        useLowercase || false,
+        useUppercase !== false
       );
       await storage.createTokens(appId, licCount);
       res.json(lics);

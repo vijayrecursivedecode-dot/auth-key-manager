@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import loginErrorSound from "@assets/login-error_1771588547644.mp3";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -13,6 +14,17 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const errorAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  function playErrorSound() {
+    try {
+      if (!errorAudioRef.current) {
+        errorAudioRef.current = new Audio(loginErrorSound);
+      }
+      errorAudioRef.current.currentTime = 0;
+      errorAudioRef.current.play().catch(() => {});
+    } catch {}
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,12 +40,14 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) {
+        playErrorSound();
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
         return;
       }
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/dashboard");
     } catch {
+      playErrorSound();
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     } finally {
       setIsLoading(false);

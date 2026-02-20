@@ -77,7 +77,7 @@ export interface IStorage {
   getLicenseByKeyGlobal(licenseKey: string): Promise<License | undefined>;
   getLicensesByOwner(ownerId: string): Promise<License[]>;
   getLicensesByApp(appId: string): Promise<License[]>;
-  createLicenses(data: InsertLicense, count: number): Promise<License[]>;
+  createLicenses(data: InsertLicense, count: number, mask?: string, useLowercase?: boolean, useUppercase?: boolean): Promise<License[]>;
   updateLicense(id: string, data: Partial<License>): Promise<License | undefined>;
   deleteLicense(id: string): Promise<void>;
 

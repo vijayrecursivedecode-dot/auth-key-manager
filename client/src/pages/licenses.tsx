@@ -94,6 +94,9 @@ export default function LicensesPage() {
   const [level, setLevel] = useState("1");
   const [maxUses, setMaxUses] = useState("1");
   const [note, setNote] = useState("");
+  const [mask, setMask] = useState("");
+  const [useLowercase, setUseLowercase] = useState(true);
+  const [useUppercase, setUseUppercase] = useState(false);
 
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendUnit, setExtendUnit] = useState("day");
@@ -153,6 +156,9 @@ export default function LicensesPage() {
         level: parseInt(level),
         maxUses: parseInt(maxUses),
         note: note || undefined,
+        mask: mask || undefined,
+        useLowercase,
+        useUppercase,
       });
       return res.json();
     },
@@ -161,6 +167,9 @@ export default function LicensesPage() {
       setGenerateOpen(false);
       setNote("");
       setCount("1");
+      setMask("");
+      setUseLowercase(true);
+      setUseUppercase(false);
       toast({ title: "License(s) generated successfully" });
     },
     onError: (error: Error) => {
@@ -628,43 +637,79 @@ export default function LicensesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Count</label>
-                <Input type="number" min="1" max="100" value={count} onChange={(e) => setCount(e.target.value)} data-testid="input-license-count" />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Count</label>
+              <Input type="number" min="1" max="100" value={count} onChange={(e) => setCount(e.target.value)} data-testid="input-license-count" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">License Mask</label>
+              <Input
+                value={mask}
+                onChange={(e) => setMask(e.target.value)}
+                placeholder="Use * for random chars (e.g. ****-****-****)"
+                data-testid="input-license-mask"
+              />
+              <div className="mt-2 flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={useLowercase}
+                    onCheckedChange={(checked) => setUseLowercase(checked === true)}
+                    data-testid="checkbox-lowercase"
+                  />
+                  Lowercase Letters
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={useUppercase}
+                    onCheckedChange={(checked) => setUseUppercase(checked === true)}
+                    data-testid="checkbox-uppercase"
+                  />
+                  Uppercase Letters
+                </label>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Level</label>
-                <Input type="number" min="1" value={level} onChange={(e) => setLevel(e.target.value)} data-testid="input-license-level" />
-              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Subscription Level</label>
+              <Select value={level} onValueChange={setLevel}>
+                <SelectTrigger data-testid="select-license-level">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 (default)</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">License Note</label>
+              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Giveaway batch" data-testid="input-license-note" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Duration</label>
-                <Input type="number" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} data-testid="input-license-duration" />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Unit</label>
+                <label className="mb-1.5 block text-sm font-medium">Expiry Unit</label>
                 <Select value={durationUnit} onValueChange={setDurationUnit}>
                   <SelectTrigger data-testid="select-duration-unit"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hour">Hour(s)</SelectItem>
-                    <SelectItem value="day">Day(s)</SelectItem>
-                    <SelectItem value="week">Week(s)</SelectItem>
-                    <SelectItem value="month">Month(s)</SelectItem>
-                    <SelectItem value="year">Year(s)</SelectItem>
+                    <SelectItem value="hour">Hours</SelectItem>
+                    <SelectItem value="day">Days</SelectItem>
+                    <SelectItem value="week">Weeks</SelectItem>
+                    <SelectItem value="month">Months</SelectItem>
+                    <SelectItem value="year">Years</SelectItem>
                     <SelectItem value="lifetime">Lifetime</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Expiry Duration</label>
+                <Input type="number" min="1" value={duration} onChange={(e) => setDuration(e.target.value)} data-testid="input-license-duration" />
               </div>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">Max Uses</label>
               <Input type="number" min="1" value={maxUses} onChange={(e) => setMaxUses(e.target.value)} data-testid="input-license-maxuses" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Note (optional)</label>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Giveaway batch" data-testid="input-license-note" />
             </div>
             <Button
               className="w-full"
