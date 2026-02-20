@@ -585,9 +585,24 @@ setInterval(() => {
 function registerLocalAuth(app: Express) {
   app.post("/api/local/register", async (req, res) => {
     try {
-      const { username, password, email } = req.body;
+      const { username, password, email, turnstileToken } = req.body;
       if (!username || !password || !email) {
         return res.status(400).json({ message: "Username, email, and password are required." });
+      }
+
+      if (process.env.TURNSTILE_SECRET_KEY && turnstileToken) {
+        const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            secret: process.env.TURNSTILE_SECRET_KEY,
+            response: turnstileToken,
+          }),
+        });
+        const verifyData = await verifyRes.json() as { success: boolean };
+        if (!verifyData.success) {
+          return res.status(403).json({ message: "Security verification failed. Please try again." });
+        }
       }
       if (username.length < 3) {
         return res.status(400).json({ message: "Username must be at least 3 characters." });

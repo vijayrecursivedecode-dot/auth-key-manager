@@ -1,11 +1,25 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Shield } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: string | HTMLElement, options: any) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+    onTurnstileLoad?: () => void;
+  }
+}
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = useMemo(() => ({
@@ -72,8 +86,53 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showTurnstile, setShowTurnstile] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const turnstileWidgetId = useRef<string | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    if (document.getElementById("turnstile-script")) {
+      if (window.turnstile) setTurnstileReady(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "turnstile-script";
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad";
+    script.async = true;
+    window.onTurnstileLoad = () => setTurnstileReady(true);
+    document.head.appendChild(script);
+    return () => {
+      delete window.onTurnstileLoad;
+    };
+  }, []);
+
+  const renderTurnstile = useCallback(() => {
+    if (!window.turnstile || !turnstileContainerRef.current || !TURNSTILE_SITE_KEY) return;
+    if (turnstileWidgetId.current) {
+      window.turnstile.remove(turnstileWidgetId.current);
+    }
+    turnstileContainerRef.current.innerHTML = "";
+    setTurnstileToken(null);
+    turnstileWidgetId.current = window.turnstile.render(turnstileContainerRef.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      theme: "dark",
+      callback: (token: string) => setTurnstileToken(token),
+      "error-callback": () => setTurnstileToken(null),
+      "expired-callback": () => setTurnstileToken(null),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (showTurnstile && turnstileReady) {
+      const timer = setTimeout(renderTurnstile, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [showTurnstile, turnstileReady, renderTurnstile]);
+
+  function handleRegisterClick(e: React.FormEvent) {
     e.preventDefault();
     if (!username.trim() || !email.trim() || !password) return;
 
@@ -87,23 +146,41 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!TURNSTILE_SITE_KEY) {
+      handleSubmit();
+      return;
+    }
+    setShowTurnstile(true);
+  }
+
+  async function handleSubmit() {
     setIsLoading(true);
     try {
       const res = await fetch("/api/local/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username: username.trim(), email: email.trim(), password }),
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email.trim(),
+          password,
+          turnstileToken: turnstileToken || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         toast({ title: "Registration failed", description: data.message, variant: "destructive" });
+        setShowTurnstile(false);
+        setTurnstileToken(null);
         return;
       }
+      setShowTurnstile(false);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setLocation("/dashboard");
     } catch {
       toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
+      setShowTurnstile(false);
+      setTurnstileToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -135,7 +212,7 @@ export default function RegisterPage() {
         </div>
 
         <Card className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleRegisterClick} className="space-y-4">
             <Input
               data-testid="input-username"
               placeholder="Username"
@@ -183,6 +260,26 @@ export default function RegisterPage() {
           </p>
         </Card>
       </div>
+
+      <Dialog open={showTurnstile} onOpenChange={(open) => { if (!open) { setShowTurnstile(false); setTurnstileToken(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">Security Check</DialogTitle>
+            <p className="text-center text-sm text-muted-foreground">Please verify you are human to proceed.</p>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div ref={turnstileContainerRef} data-testid="turnstile-widget" />
+            <Button
+              className="w-full"
+              onClick={() => handleSubmit()}
+              disabled={!turnstileToken || isLoading}
+              data-testid="button-verify-register"
+            >
+              {isLoading ? "Verifying..." : "Continue"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
