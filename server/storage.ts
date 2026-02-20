@@ -26,9 +26,24 @@ function generateSecret(): string {
   return result;
 }
 
-function generateLicenseKey(): string {
+function generateLicenseKey(mask?: string, useLowercase?: boolean, useUppercase?: boolean): string {
+  let chars = "0123456789";
+  if (useUppercase !== false) chars += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (useLowercase) chars += "abcdefghijklmnopqrstuvwxyz";
+
+  if (mask && mask.trim()) {
+    let result = "";
+    for (const ch of mask) {
+      if (ch === "*") {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      } else {
+        result += ch;
+      }
+    }
+    return result;
+  }
+
   const segments = [];
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   for (let s = 0; s < 5; s++) {
     let seg = "";
     for (let i = 0; i < 5; i++) {
@@ -176,14 +191,14 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(licenses).where(eq(licenses.appId, appId));
   }
 
-  async createLicenses(data: InsertLicense, count: number): Promise<License[]> {
+  async createLicenses(data: InsertLicense, count: number, mask?: string, useLowercase?: boolean, useUppercase?: boolean): Promise<License[]> {
     const created: License[] = [];
     for (let i = 0; i < count; i++) {
       const [lic] = await db
         .insert(licenses)
         .values({
           ...data,
-          licenseKey: generateLicenseKey(),
+          licenseKey: generateLicenseKey(mask, useLowercase, useUppercase),
         })
         .returning();
       created.push(lic);
