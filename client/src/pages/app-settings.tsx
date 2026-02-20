@@ -43,7 +43,7 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
     case "C#":
       return `// Replace your existing KeyAuth.cs with KeyAuth_KeyVault.cs from SDK Downloads tab
 // Then update your initialization:
-public static KeyVault.api KeyVaultApp = new KeyVault.api(
+public static KeyAuthManager.api KeyAuthApp = new KeyAuthManager.api(
     name: "${name}",
     ownerid: "${paddedOwnerId}",
     secret: "${secret}",
@@ -58,9 +58,9 @@ std::string version = "${version}";
 std::string url = "${window.location.origin}/api/1.3/";
 std::string path = "";
 
-KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
+KeyAuth::api KeyAuthApp(name, ownerid, version, url, path);`;
     case "Java":
-      return `public static KeyVault KeyVaultApp = new KeyVault(
+      return `public static KeyAuthManager KeyAuthApp = new KeyAuthManager(
     "${name}",
     "${paddedOwnerId}",
     "${secret}",
@@ -68,7 +68,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     "${apiUrl}"
 );`;
     case "Python":
-      return `keyvaultapp = api(
+      return `keyauthapp = api(
     name="${name}",
     ownerid="${paddedOwnerId}",
     secret="${secret}",
@@ -76,7 +76,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url="${apiUrl}"
 )`;
     case "PHP":
-      return `$KeyVaultApp = new KeyVault\\api(
+      return `$KeyAuthApp = new KeyAuthManager\\api(
     "${name}",
     "${paddedOwnerId}",
     "${secret}",
@@ -84,7 +84,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     "${apiUrl}"
 );`;
     case "JavaScript":
-      return `const KeyVaultApp = new KeyVault({
+      return `const KeyAuthApp = new KeyAuthManager({
     name: "${name}",
     ownerId: "${paddedOwnerId}",
     secret: "${secret}",
@@ -92,7 +92,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url: "${apiUrl}"
 });`;
     case "TypeScript":
-      return `const KeyVaultApp: KeyVault = new KeyVault({
+      return `const KeyAuthApp: KeyAuthManager = new KeyAuthManager({
     name: "${name}",
     ownerId: "${paddedOwnerId}",
     secret: "${secret}",
@@ -100,7 +100,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url: "${apiUrl}"
 });`;
     case "VB.Net":
-      return `Public Shared KeyVaultApp As New api(
+      return `Public Shared KeyAuthApp As New api(
     name:="${name}",
     ownerid:="${paddedOwnerId}",
     secret:="${secret}",
@@ -108,7 +108,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url:="${apiUrl}"
 )`;
     case "Rust":
-      return `let mut keyvaultapp = KeyVaultApi::new(
+      return `let mut keyauthapp = KeyAuthApi::new(
     "${name}",
     "${paddedOwnerId}",
     "${secret}",
@@ -116,7 +116,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     "${apiUrl}"
 );`;
     case "Go":
-      return `var api = keyvault.KeyVault{
+      return `var api = keyauth.KeyAuthManager{
     Name:    "${name}",
     OwnerId: "${paddedOwnerId}",
     Secret:  "${secret}",
@@ -124,7 +124,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     Url:     "${apiUrl}",
 }`;
     case "Lua":
-      return `local KeyVaultApp = KeyVault:new(
+      return `local KeyAuthApp = KeyAuthManager:new(
     "${name}",
     "${paddedOwnerId}",
     "${secret}",
@@ -132,7 +132,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     "${apiUrl}"
 )`;
     case "Ruby":
-      return `keyvault_app = KeyVault::API.new(
+      return `keyauth_app = KeyAuthManager::API.new(
     name: "${name}",
     owner_id: "${paddedOwnerId}",
     secret: "${secret}",
@@ -140,7 +140,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url: "${apiUrl}"
 )`;
     case "Perl":
-      return `my $keyvault = KeyVault::API->new(
+      return `my $keyauth = KeyAuthManager::API->new(
     name     => "${name}",
     owner_id => "${paddedOwnerId}",
     secret   => "${secret}",
@@ -672,7 +672,7 @@ export default function AppSettingsPage() {
                 <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
                   <p className="text-sm font-semibold mb-2">Step 1: Update the Public Key in auth.cpp / KeyAuth.cs</p>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Open your <span className="font-mono">auth.cpp</span> (or <span className="font-mono">KeyAuth.cs</span>) and find the <span className="font-mono">API_PUBLIC_KEY</span> line. Replace it with your KeyVault public key:
+                    Open your <span className="font-mono">auth.cpp</span> (or <span className="font-mono">KeyAuth.cs</span>) and find the <span className="font-mono">API_PUBLIC_KEY</span> line. Replace it with your KeyAuth Manager public key:
                   </p>
                   <div className="rounded-md border bg-muted/50 p-3 mb-3">
                     <p className="text-xs text-muted-foreground mb-1">C++ (auth.cpp):</p>
@@ -745,9 +745,9 @@ std::string path = "";`}</code>
                       {selectedApp && (
                         <div className="mt-2 rounded-md border bg-muted/50 p-3">
                           <pre className="overflow-x-auto text-xs leading-relaxed">
-                            <code data-testid="text-cs-setup-code">{`KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";
+                            <code data-testid="text-cs-setup-code">{`KeyAuthManager.api.ApiUrl = "${window.location.origin}/api/1.2/";
 
-public static api KeyVaultApp = new api(
+public static api KeyAuthApp = new api(
     name: "${selectedApp.name}",
     ownerid: "${(user as any)?.numericId || user?.id || ""}",
     secret: "${selectedApp.secret}",
@@ -759,7 +759,7 @@ public static api KeyVaultApp = new api(
                             variant="ghost"
                             className="mt-2"
                             onClick={() => copyToClipboard(
-                              `KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";\n\npublic static api KeyVaultApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user as any)?.numericId || user?.id || ""}",\n    secret: "${selectedApp.secret}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
+                              `KeyAuthManager.api.ApiUrl = "${window.location.origin}/api/1.2/";\n\npublic static api KeyAuthApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user as any)?.numericId || user?.id || ""}",\n    secret: "${selectedApp.secret}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
                               "C# init code"
                             )}
                             data-testid="button-copy-cs-init"

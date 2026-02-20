@@ -1,4 +1,4 @@
-# KeyVault - Software Licensing Platform
+# KeyAuth Manager - Software Licensing Platform
 
 ## Overview
 A KeyAuth-style software licensing and authentication management platform. Users can create applications, generate license keys, manage app users, create registration tokens, and configure app settings - all from a single dashboard. Includes a public client API compatible with KeyAuth-style client libraries.

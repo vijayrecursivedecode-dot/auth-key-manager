@@ -51,7 +51,7 @@ export default function LoginPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary">
               <Shield className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold tracking-tight italic" data-testid="text-brand">KeyVault</span>
+            <span className="text-2xl font-bold tracking-tight italic" data-testid="text-brand">KeyAuth Manager</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}

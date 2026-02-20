@@ -63,7 +63,7 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
 
   switch (lang) {
     case "C#":
-      return `public static KeyVault.api KeyVaultApp = new KeyVault.api(
+      return `public static KeyAuthManager.api KeyAuthApp = new KeyAuthManager.api(
     name: "${name}",
     ownerid: "${paddedOwnerId}",
     secret: "${secret}",
@@ -77,9 +77,9 @@ std::string version = "${version}";
 std::string url = "${window.location.origin}/api/1.3/";
 std::string path = "";
 
-KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
+KeyAuth::api KeyAuthApp(name, ownerid, version, url, path);`;
     case "Python":
-      return `keyvaultapp = api(
+      return `keyauthapp = api(
     name="${name}",
     ownerid="${paddedOwnerId}",
     secret="${secret}",
@@ -87,7 +87,7 @@ KeyAuth::api KeyVaultApp(name, ownerid, version, url, path);`;
     url="${apiUrl}"
 )`;
     case "Java":
-      return `public static KeyVault KeyVaultApp = new KeyVault(
+      return `public static KeyAuthManager KeyAuthApp = new KeyAuthManager(
     "${name}",
     "${paddedOwnerId}",
     "${secret}",

@@ -77,7 +77,7 @@ export function AppSidebar() {
             <Shield className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
-            <span className="text-base font-bold tracking-tight" data-testid="text-logo">KeyVault</span>
+            <span className="text-base font-bold tracking-tight" data-testid="text-logo">KeyAuth Manager</span>
             <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">Licensing Platform</span>
           </div>
         </Link>

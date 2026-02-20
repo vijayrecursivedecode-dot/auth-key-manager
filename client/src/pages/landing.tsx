@@ -67,7 +67,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
               <Shield className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold tracking-tight">KeyVault</span>
+            <span className="text-lg font-bold tracking-tight">KeyAuth Manager</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -203,7 +203,7 @@ export default function LandingPage() {
                 Ready to Secure Your Software?
               </h2>
               <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-                Join developers who trust KeyVault to protect and manage their
+                Join developers who trust KeyAuth Manager to protect and manage their
                 applications.
               </p>
               <div className="mt-8">
@@ -223,7 +223,7 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
-            <span>KeyVault</span>
+            <span>KeyAuth Manager</span>
           </div>
           <span>Software Licensing Platform</span>
         </div>
