@@ -817,6 +817,7 @@ export async function registerRoutes(
       if (!existing || existing.ownerId !== userId) {
         return res.status(404).json({ message: "Application not found" });
       }
+      const licCount = Math.min(count || 1, 100);
       const lics = await storage.createLicenses(
         {
           appId,
@@ -828,8 +829,9 @@ export async function registerRoutes(
           enabled: true,
           expiresAt: null,
         },
-        Math.min(count || 1, 100)
+        licCount
       );
+      await storage.createTokens(appId, licCount);
       res.json(lics);
     } catch (error) {
       console.error("Error creating licenses:", error);
