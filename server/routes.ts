@@ -50,7 +50,9 @@ function signResponse(body: string): { signature: string; timestamp: string } {
 function sendSignedJson(res: any, ownerid: string, data: any, hmacKey?: string) {
   const responseData = { ...data, ownerid };
   if (!("code" in responseData)) {
-    responseData.code = data.success ? "68" : "0";
+    responseData.code = data.success ? 68 : 0;
+  } else if (typeof responseData.code === "string") {
+    responseData.code = parseInt(responseData.code, 10) || 0;
   }
 
   const body = JSON.stringify(responseData);
@@ -107,6 +109,8 @@ function registerClientApi(app: Express) {
     const params = { ...req.query, ...req.body };
     const { type } = params;
     const reqOwnerid = params.ownerid || "";
+
+    console.log(`[CLIENT-API] ${req.method} ${req.path} type=${type} params=${JSON.stringify(params)}`);
 
     const getSessionHmacKey = (): string | undefined => {
       const sid = params.sessionid;
