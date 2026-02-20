@@ -152,16 +152,18 @@ function registerClientApi(app: Express) {
           if (!application) {
             return sendSignedJson(res, ownerid, { success: false, message: "Application not found. Check your application name and owner ID." });
           }
+          const initHmacKeyEarly = enckey ? application.secret : undefined;
           if (secret && application.secret !== secret) {
-            return sendSignedJson(res, ownerid, { success: false, message: "Invalid application secret." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Invalid application secret." }, initHmacKeyEarly);
           }
           if (!application.enabled) {
-            return sendSignedJson(res, ownerid, { success: false, message: "Application is disabled by the owner." });
+            return sendSignedJson(res, ownerid, { success: false, message: "Application is disabled by the owner." }, initHmacKeyEarly);
           }
           if (ver && application.version && ver !== application.version) {
-            return sendSignedJson(res, ownerid, { success: false, message: "invalidver", download: "" });
+            return sendSignedJson(res, ownerid, { success: false, message: "invalidver", download: "" }, initHmacKeyEarly);
           }
           const hmacKey = enckey ? (enckey + "-" + application.secret) : undefined;
+          const initHmacKey = enckey ? application.secret : undefined;
           const sessionId = randomUUID();
           clientSessions.set(sessionId, {
             sessionId,
@@ -183,7 +185,7 @@ function registerClientApi(app: Express) {
               customerPanelLink: "",
               downloadLink: "",
             },
-          }, hmacKey);
+          }, initHmacKey);
         }
 
         case "login": {

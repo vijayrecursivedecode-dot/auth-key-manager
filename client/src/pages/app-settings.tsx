@@ -41,10 +41,14 @@ function getCodeSnippet(lang: SupportedLanguage, app: Application, ownerId: stri
 
   switch (lang) {
     case "C#":
-      return `// Use KeyAuth_KeyVault.cs + Ed25519.cs from SDK Downloads tab
+      return `// Use KeyAuth_KeyVault.cs from SDK Downloads tab
+// Set the API URL before creating the instance:
+KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";
+
 public static api KeyVaultApp = new api(
     name: "${name}",
     ownerid: "${paddedOwnerId}",
+    secret: "${secret}",
     version: "${version}"
 );`;
     case "C++":
@@ -635,40 +639,25 @@ export default function AppSettingsPage() {
                         <p className="font-semibold">C# Client Library</p>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Drop-in replacement for the KeyAuth C# KeyAuth.cs file. Includes Ed25519 verification.
+                        Drop-in replacement for the KeyAuth C# KeyAuth.cs file. Uses HMAC-SHA256 signature verification.
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Files: <span className="font-mono">KeyAuth_KeyVault.cs</span> + <span className="font-mono">Ed25519.cs</span>
+                        File: <span className="font-mono">KeyAuth_KeyVault.cs</span>
                       </p>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const a = document.createElement("a");
-                          a.href = "/KeyAuth_KeyVault.cs";
-                          a.download = "KeyAuth_KeyVault.cs";
-                          a.click();
-                        }}
-                        data-testid="button-download-cs"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download .cs
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const a = document.createElement("a");
-                          a.href = "/Ed25519.cs";
-                          a.download = "Ed25519.cs";
-                          a.click();
-                        }}
-                        data-testid="button-download-ed25519"
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Ed25519.cs
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = "/KeyAuth_KeyVault.cs";
+                        a.download = "KeyAuth_KeyVault.cs";
+                        a.click();
+                      }}
+                      data-testid="button-download-cs"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download .cs
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -753,13 +742,16 @@ std::string path = "";`}</code>
                   <p className="mb-3 text-sm font-semibold">C# Project - Update Program.cs</p>
                   <div className="space-y-3">
                     <div className="rounded-md border p-3">
-                      <p className="text-sm font-medium">Find the KeyAuth initialization in your main file and update it:</p>
+                      <p className="text-sm font-medium">Replace the KeyAuth.cs with KeyAuth_KeyVault.cs from SDK Downloads, then update your init:</p>
                       {selectedApp && (
                         <div className="mt-2 rounded-md border bg-muted/50 p-3">
                           <pre className="overflow-x-auto text-xs leading-relaxed">
-                            <code data-testid="text-cs-setup-code">{`public static api KeyAuthApp = new api(
+                            <code data-testid="text-cs-setup-code">{`KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";
+
+public static api KeyVaultApp = new api(
     name: "${selectedApp.name}",
     ownerid: "${(user as any)?.numericId || user?.id || ""}",
+    secret: "${selectedApp.secret}",
     version: "${selectedApp.version || "1.0"}"
 );`}</code>
                           </pre>
@@ -768,7 +760,7 @@ std::string path = "";`}</code>
                             variant="ghost"
                             className="mt-2"
                             onClick={() => copyToClipboard(
-                              `public static api KeyAuthApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user as any)?.numericId || user?.id || ""}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
+                              `KeyVault.api.ApiUrl = "${window.location.origin}/api/1.2/";\n\npublic static api KeyVaultApp = new api(\n    name: "${selectedApp.name}",\n    ownerid: "${(user as any)?.numericId || user?.id || ""}",\n    secret: "${selectedApp.secret}",\n    version: "${selectedApp.version || "1.0"}"\n);`,
                               "C# init code"
                             )}
                             data-testid="button-copy-cs-init"
@@ -785,10 +777,11 @@ std::string path = "";`}</code>
                 <div className="rounded-md border bg-muted/50 p-4">
                   <p className="text-sm font-medium mb-2">Summary: What to Change</p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                    <li><span className="font-mono">auth.cpp</span> / <span className="font-mono">KeyAuth.cs</span>: Change <span className="font-mono">API_PUBLIC_KEY</span> to KeyVault key (one line)</li>
-                    <li><span className="font-mono">main.cpp</span> / <span className="font-mono">Program.cs</span>: Change name, ownerid, version, and url</li>
+                    <li><span className="font-mono">C++</span>: Change <span className="font-mono">API_PUBLIC_KEY</span> in auth.cpp + update name/ownerid/version/url in main.cpp</li>
+                    <li><span className="font-mono">C#</span>: Replace KeyAuth.cs with KeyAuth_KeyVault.cs + update name/ownerid/secret/version + set ApiUrl</li>
                     <li>All functions work: init, login, register, license, upgrade, ban, check, logout</li>
-                    <li>Your API URL: <span className="font-mono">{window.location.origin}/api/1.3/</span></li>
+                    <li>C++ API URL: <span className="font-mono">{window.location.origin}/api/1.3/</span></li>
+                    <li>C# API URL: <span className="font-mono">{window.location.origin}/api/1.2/</span></li>
                   </ul>
                 </div>
               </div>
