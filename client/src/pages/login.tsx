@@ -46,6 +46,7 @@ export default function LoginPage() {
       }
       playErrorSound();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      await new Promise((r) => setTimeout(r, 500));
       setLocation("/dashboard");
     } catch {
       playErrorSound();
