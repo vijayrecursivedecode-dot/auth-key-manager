@@ -639,10 +639,26 @@ function registerLocalAuth(app: Express) {
 
   app.post("/api/local/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, turnstileToken } = req.body;
       if (!username || !password) {
         return res.status(400).json({ message: "Username and password are required." });
       }
+
+      if (process.env.TURNSTILE_SECRET_KEY && turnstileToken) {
+        const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            secret: process.env.TURNSTILE_SECRET_KEY,
+            response: turnstileToken,
+          }),
+        });
+        const verifyData = await verifyRes.json() as { success: boolean };
+        if (!verifyData.success) {
+          return res.status(403).json({ message: "Security verification failed. Please try again." });
+        }
+      }
+
       const account = await storage.getAccountByUsername(username);
       if (!account) {
         return res.status(401).json({ message: "Invalid username or password." });
