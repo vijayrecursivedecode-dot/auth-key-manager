@@ -1267,6 +1267,113 @@ export async function registerRoutes(
         case "validate": {
           return res.json({ success: true, message: "Seller key is valid", appName: app.name });
         }
+        case "appdetails": {
+          return res.json({
+            success: true,
+            appdetails: {
+              name: app.name,
+              ownerid: app.ownerId,
+              version: app.version || "1.0",
+              enabled: app.enabled,
+            },
+          });
+        }
+        case "stats": {
+          const allLicenses = await storage.getLicensesByApp(seller.appId);
+          const allUsers = await storage.getAppUsersByApp(seller.appId);
+          const allTokens = await storage.getTokensByApp(seller.appId);
+          const usedKeys = allLicenses.filter(l => l.usedCount > 0).length;
+          const unusedKeys = allLicenses.filter(l => l.usedCount === 0).length;
+          const bannedUsers = allUsers.filter(u => u.banned).length;
+          return res.json({
+            success: true,
+            totalkeys: allLicenses.length,
+            unused: unusedKeys,
+            used: usedKeys,
+            totalusers: allUsers.length,
+            bannedusers: bannedUsers,
+            totaltokens: allTokens.length,
+          });
+        }
+        case "fetchallkeys": {
+          const licenses = await storage.getLicensesByApp(seller.appId);
+          return res.json({
+            success: true,
+            keys: licenses.map(l => ({
+              key: l.licenseKey,
+              level: l.level,
+              duration: l.duration,
+              durationUnit: l.durationUnit,
+              enabled: l.enabled,
+              usedCount: l.usedCount,
+              maxUses: l.maxUses,
+              note: l.note,
+              createdAt: l.createdAt,
+              expiresAt: l.expiresAt,
+            })),
+          });
+        }
+        case "fetchallusers": {
+          const users = await storage.getAppUsersByApp(seller.appId);
+          return res.json({
+            success: true,
+            users: users.map(u => ({
+              username: u.username,
+              email: u.email,
+              hwid: u.hwid,
+              ip: u.ip,
+              banned: u.banned,
+              level: u.level,
+              expiresAt: u.expiresAt,
+              lastLogin: u.lastLogin,
+              createdAt: u.createdAt,
+            })),
+          });
+        }
+        case "info": {
+          const { key: infoKey } = req.body;
+          if (!infoKey) return res.status(400).json({ success: false, message: "License key required" });
+          const infoLic = await storage.getLicenseByKey(infoKey, seller.appId);
+          if (!infoLic) return res.status(404).json({ success: false, message: "License not found" });
+          return res.json({
+            success: true,
+            key: infoLic.licenseKey,
+            level: infoLic.level,
+            duration: infoLic.duration,
+            durationUnit: infoLic.durationUnit,
+            enabled: infoLic.enabled,
+            usedCount: infoLic.usedCount,
+            maxUses: infoLic.maxUses,
+            note: infoLic.note,
+            createdAt: infoLic.createdAt,
+            expiresAt: infoLic.expiresAt,
+          });
+        }
+        case "verify": {
+          const { key: verifyKey } = req.body;
+          if (!verifyKey) return res.status(400).json({ success: false, message: "License key required" });
+          const verifyLic = await storage.getLicenseByKey(verifyKey, seller.appId);
+          if (!verifyLic) return res.json({ success: false, message: "License not found" });
+          return res.json({ success: true, message: "License exists" });
+        }
+        case "getuserdata": {
+          const { user: dataUsername } = req.body;
+          if (!dataUsername) return res.status(400).json({ success: false, message: "Username is required" });
+          const dataUser = await storage.getAppUserByUsername(dataUsername, seller.appId);
+          if (!dataUser) return res.status(404).json({ success: false, message: "User not found" });
+          return res.json({
+            success: true,
+            username: dataUser.username,
+            email: dataUser.email,
+            hwid: dataUser.hwid,
+            ip: dataUser.ip,
+            banned: dataUser.banned,
+            level: dataUser.level,
+            expiresAt: dataUser.expiresAt,
+            lastLogin: dataUser.lastLogin,
+            createdAt: dataUser.createdAt,
+          });
+        }
         default:
           return res.status(400).json({ success: false, message: "Invalid type" });
       }
