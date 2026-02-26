@@ -1517,5 +1517,23 @@ export async function registerRoutes(
     archive.finalize();
   });
 
+  app.get("/api/download/discord-bot", (req, res) => {
+    const botDir = path.join(process.cwd(), "public", "downloads", "discord-bot");
+    if (!fs.existsSync(botDir)) {
+      return res.status(404).json({ message: "Bot files not found" });
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=keyauth-discord-bot.zip");
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (err: Error) => {
+      res.status(500).json({ message: "Failed to create archive" });
+    });
+    archive.pipe(res);
+    archive.directory(botDir, "keyauth-discord-bot");
+    archive.finalize();
+  });
+
   return httpServer;
 }

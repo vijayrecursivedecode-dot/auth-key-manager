@@ -973,7 +973,7 @@ function SellerTab({ appId }: { appId: string }) {
               <div className="flex-1">
                 <p className="mb-2 text-sm font-medium">Notice!</p>
                 <p className="mb-3 text-sm text-muted-foreground">
-                  Bots allow you to control your entire application without having to log into the website. Download the bot source code, add your Telegram Bot Token and seller key, then run it on any server.
+                  Bots allow you to control your entire application without having to log into the website. Download the bot source code, add your bot token and seller key, then run it on any server.
                 </p>
 
                 <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -989,49 +989,89 @@ function SellerTab({ appId }: { appId: string }) {
                       a.click();
                     }}
                   >
+                    <Bot className="h-4 w-4" />
+                    Telegram Bot
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    data-testid="button-download-discord-bot"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = "/api/download/discord-bot";
+                      a.download = "keyauth-discord-bot.zip";
+                      a.click();
+                    }}
+                  >
                     <Download className="h-4 w-4" />
-                    Download Telegram Bot
+                    Discord Bot
                   </Button>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <div className="mb-3 rounded border border-border bg-muted/50 p-3">
-                  <p className="mb-2 text-xs font-medium text-foreground">Quick Setup:</p>
-                  <ol className="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
-                    <li>Create a bot via <strong>@BotFather</strong> on Telegram</li>
-                    <li>Download the bot files above</li>
-                    <li>Copy <code className="rounded bg-muted px-1 py-0.5 font-mono">.env.example</code> to <code className="rounded bg-muted px-1 py-0.5 font-mono">.env</code></li>
-                    <li>Set <code className="rounded bg-muted px-1 py-0.5 font-mono">TELEGRAM_BOT_TOKEN</code> and <code className="rounded bg-muted px-1 py-0.5 font-mono">API_URL</code></li>
-                    <li>Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm install && npm start</code></li>
-                  </ol>
-                </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Bot className="h-5 w-5 text-blue-400" />
+                <h4 className="text-sm font-semibold">Telegram Bot</h4>
+              </div>
+              <div className="mb-3 rounded border border-border bg-muted/50 p-3">
+                <p className="mb-2 text-xs font-medium text-foreground">Quick Setup:</p>
+                <ol className="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                  <li>Create a bot via <strong>@BotFather</strong> on Telegram</li>
+                  <li>Download and extract the bot files</li>
+                  <li>Copy <code className="rounded bg-muted px-1 py-0.5 font-mono">.env.example</code> to <code className="rounded bg-muted px-1 py-0.5 font-mono">.env</code></li>
+                  <li>Set <code className="rounded bg-muted px-1 py-0.5 font-mono">TELEGRAM_BOT_TOKEN</code> and <code className="rounded bg-muted px-1 py-0.5 font-mono">API_URL</code></li>
+                  <li>Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm install && npm start</code></li>
+                </ol>
+              </div>
+              <p className="mb-1 text-xs font-medium text-foreground">Commands:</p>
+              <div className="grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/setseller</code> - Select or add app</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/create</code> - Create license(s)</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/delkey</code> - Delete a license</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/getkeys</code> - Export all keys</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/keyinfo</code> - License info</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/verify</code> - Verify license</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/adduser</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/deluser</code> - Manage users</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/ban</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/unban</code> - Ban/unban</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/resethwid</code> - Reset HWID</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/stats</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/appdetails</code> - App info</div>
+              </div>
+            </div>
 
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <Bot className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-                    <span>
-                      Starting command: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/setseller</code>
-                    </span>
-                  </li>
-                </ul>
-                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                  <p className="font-medium text-sm text-foreground">Available commands after setup:</p>
-                  <div className="grid grid-cols-1 gap-1">
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/setseller</code> - Select or add application</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/create</code> - Create license key(s)</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/delkey</code> - Delete a license key</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/getkeys</code> - Export all license keys</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/keyinfo</code> - Get license key info</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/verify</code> - Verify a license exists</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/adduser</code> - Create a user</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/deluser</code> - Delete a user</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/getusers</code> - Export all users</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/userdata</code> - Get user details</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/resethwid</code> - Reset user HWID</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/ban</code> / <code className="rounded bg-muted px-1.5 py-0.5 font-mono">/unban</code> - Ban/unban a user</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/stats</code> - View app statistics</div>
-                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/appdetails</code> - View app details</div>
-                  </div>
-                </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <svg className="h-5 w-5 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" /></svg>
+                <h4 className="text-sm font-semibold">Discord Bot</h4>
+              </div>
+              <div className="mb-3 rounded border border-border bg-muted/50 p-3">
+                <p className="mb-2 text-xs font-medium text-foreground">Quick Setup:</p>
+                <ol className="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                  <li>Create a bot at <strong>discord.com/developers</strong></li>
+                  <li>Download and extract the bot files</li>
+                  <li>Copy <code className="rounded bg-muted px-1 py-0.5 font-mono">.env.example</code> to <code className="rounded bg-muted px-1 py-0.5 font-mono">.env</code></li>
+                  <li>Set <code className="rounded bg-muted px-1 py-0.5 font-mono">TOKEN</code> and <code className="rounded bg-muted px-1 py-0.5 font-mono">API_URL</code></li>
+                  <li>Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm install && npm start</code></li>
+                </ol>
+              </div>
+              <p className="mb-1 text-xs font-medium text-foreground">Slash Commands:</p>
+              <div className="grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/setseller</code> - Set seller key (Admin)</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/add-license</code> - Create license(s)</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/delete-license</code> - Delete a license</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/fetch-all-keys</code> - Export all keys</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/license-info</code> - License info</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/verify-license</code> - Verify license</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/add-user</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/delete-user</code> - Manage users</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/verify-user</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/user-data</code> - User info</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/ban-user</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/unban-user</code> - Ban/unban</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/reset-user</code> - Reset HWID</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/fetch-all-users</code> - Export all users</div>
+                <div><code className="rounded bg-muted px-1 py-0.5 font-mono">/app-stats</code> / <code className="rounded bg-muted px-1 py-0.5 font-mono">/app-details</code> - App info</div>
               </div>
             </div>
           </div>

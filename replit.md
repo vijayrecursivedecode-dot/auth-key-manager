@@ -83,6 +83,16 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 - Sellers add their seller key via the bot (/setseller), then manage licenses/users via conversational commands
 - In-memory state management for multi-step conversations with 5-minute timeout
 
+## Discord Bot
+- Downloadable standalone bot: `public/downloads/discord-bot/` — users download from App Settings > Seller tab
+  - Self-contained Node.js bot using Discord.js v14 with slash commands
+  - Configurable via `.env` file (TOKEN + API_URL pointing to seller API)
+  - Download endpoint: GET `/api/download/discord-bot` (serves zip file via archiver)
+  - Uses quick.db (SQLite) to store seller keys per guild
+- Slash commands: /setseller (admin-only), /add-license, /delete-license, /verify-license, /license-info, /fetch-all-keys, /add-user, /delete-user, /verify-user, /user-data, /reset-user, /ban-user, /unban-user, /fetch-all-users, /app-stats, /app-details
+- Purple themed embeds matching the platform design
+- Large exports sent as file attachments (JSON)
+
 ## Seller API (POST /api/seller)
 Extended seller API types: add, del, adduser, deluser, resetuser, banuser, unbanuser, validate, appdetails, stats, fetchallkeys, fetchallusers, info, verify, getuserdata
 

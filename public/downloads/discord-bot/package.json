@@ -1,0 +1,19 @@
+{
+  "name": "keyauth-manager-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord Bot for KeyAuth Manager - Manage licenses and users via Discord slash commands",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "better-sqlite3": "^9.2.2",
+    "quick.db": "^9.1.7",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
