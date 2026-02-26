@@ -211,6 +211,13 @@ function registerClientApi(app: Express) {
           if (appUser.expiresAt && new Date(appUser.expiresAt) < new Date()) {
             return sendRes({ success: false, message: "Subscription expired." });
           }
+          const currentHwidList: string[] = (appUser as any).hwidList || [];
+          const userMaxHwid = (appUser as any).maxHwid || 1;
+          if (hwid && userMaxHwid > 0) {
+            if (!currentHwidList.includes(hwid) && currentHwidList.length >= userMaxHwid) {
+              return sendRes({ success: false, message: `Device limit reached. Maximum ${userMaxHwid} device(s) allowed.` });
+            }
+          }
           if (application.hwidLock && appUser.hwid && hwid && appUser.hwid !== hwid) {
             return sendRes({ success: false, message: "HWID mismatch. This account is locked to a different device." });
           }
@@ -218,8 +225,13 @@ function registerClientApi(app: Express) {
             lastLogin: new Date(),
             ip: req.ip || req.headers["x-forwarded-for"] || null,
           };
-          if (hwid && (!appUser.hwid || !application.hwidLock)) {
-            updateData.hwid = hwid;
+          if (hwid) {
+            if (!appUser.hwid || !application.hwidLock) {
+              updateData.hwid = hwid;
+            }
+            if (!currentHwidList.includes(hwid)) {
+              updateData.hwidList = [...currentHwidList, hwid];
+            }
           }
           await storage.updateAppUser(appUser.id, updateData);
           session.userId = appUser.id;

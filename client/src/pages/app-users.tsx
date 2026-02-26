@@ -520,7 +520,7 @@ export default function AppUsersPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Devices:</span>{" "}
-                      <span>{(user as any).maxHwid === 0 ? "Unlimited" : `${(user as any).maxHwid || 1}`}</span>
+                      <span>{(user as any).hwidList?.length || 0}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">HWID:</span>{" "}
@@ -590,7 +590,7 @@ export default function AppUsersPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" data-testid={`badge-devices-${user.id}`}>
-                          {(user as any).maxHwid === 0 ? "Unlimited" : `${(user as any).maxHwid || 1}`}
+                          {(user as any).hwidList?.length || 0}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

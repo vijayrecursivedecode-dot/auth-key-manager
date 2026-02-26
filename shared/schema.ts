@@ -60,6 +60,7 @@ export const appUsers = pgTable(
     password: text("password"),
     email: text("email"),
     hwid: text("hwid"),
+    hwidList: text("hwid_list").array().default(sql`'{}'::text[]`),
     maxHwid: integer("max_hwid").default(1),
     ip: text("ip"),
     level: integer("level").default(1),
