@@ -50,6 +50,8 @@ import {
   Ban,
   ShieldCheck,
   Fingerprint,
+  Copy,
+  CheckCircle,
 } from "lucide-react";
 import type { Application, AppUser } from "@shared/schema";
 
@@ -95,6 +97,16 @@ export default function AppUsersPage() {
   const [maxHwid, setMaxHwid] = useState("1");
   const [hwidAffected, setHwidAffected] = useState(false);
   const [createHwid, setCreateHwid] = useState("");
+
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [createdUserInfo, setCreatedUserInfo] = useState<{
+    username: string;
+    password: string;
+    expiry: string;
+    subscription: string;
+    appName: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const [resetHwidOpen, setResetHwidOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -184,6 +196,20 @@ export default function AppUsersPage() {
       return res.json();
     },
     onSuccess: () => {
+      const expiryLabels: Record<string, string> = {
+        "1h": "1 Hour", "1d": "1 Day", "7d": "7 Days", "30d": "30 Days",
+        "90d": "90 Days", "180d": "180 Days", "365d": "365 Days", "lifetime": "Lifetime",
+      };
+      const subLabels: Record<string, string> = {
+        "1": "default", "2": "2", "3": "3", "4": "4", "5": "5", "10": "10",
+      };
+      setCreatedUserInfo({
+        username,
+        password: password || "(none)",
+        expiry: expirationUnit === "custom" ? expirationCustom : (expiryLabels[expirationUnit] || expirationUnit),
+        subscription: subLabels[subscription] || subscription,
+        appName: getAppName(selectedAppId),
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/app-users"] });
       setCreateOpen(false);
       setUsername("");
@@ -195,7 +221,7 @@ export default function AppUsersPage() {
       setMaxHwid("1");
       setHwidAffected(false);
       setCreateHwid("");
-      toast({ title: "User created successfully" });
+      setSuccessOpen(true);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -840,6 +866,68 @@ export default function AppUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-500">
+              <CheckCircle className="h-5 w-5" />
+              User Successfully Created
+            </DialogTitle>
+          </DialogHeader>
+          {createdUserInfo && (
+            <div className="space-y-3 pt-2">
+              <p className="text-sm text-muted-foreground">
+                The account for <span className="font-semibold text-foreground">{createdUserInfo.username}</span> has been generated.
+              </p>
+              <SuccessRow label="Username" value={createdUserInfo.username} field="username" copiedField={copiedField} setCopiedField={setCopiedField} />
+              <SuccessRow label="Password" value={createdUserInfo.password} field="password" copiedField={copiedField} setCopiedField={setCopiedField} />
+              <SuccessRow label="Expiry" value={createdUserInfo.expiry} field="expiry" copiedField={copiedField} setCopiedField={setCopiedField} />
+              <SuccessRow label="Subscription" value={createdUserInfo.subscription} field="subscription" copiedField={copiedField} setCopiedField={setCopiedField} />
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                App: {createdUserInfo.appName}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setSuccessOpen(false)} data-testid="button-close-success">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SuccessRow({ label, value, field, copiedField, setCopiedField }: {
+  label: string;
+  value: string;
+  field: string;
+  copiedField: string | null;
+  setCopiedField: (v: string | null) => void;
+}) {
+  const isCopied = copiedField === field;
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    });
+  };
+  return (
+    <div className="flex items-center justify-between rounded-md border px-3 py-2">
+      <div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-sm font-medium" data-testid={`text-success-${field}`}>{value}</div>
+      </div>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-8 w-8"
+        onClick={handleCopy}
+        data-testid={`button-copy-${field}`}
+      >
+        {isCopied ? <CheckCircle className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+      </Button>
     </div>
   );
 }
