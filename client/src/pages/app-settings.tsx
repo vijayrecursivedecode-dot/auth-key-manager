@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink, Download, FileCode, Plus, Trash2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink, Download, FileCode, Plus, Trash2, Eye, EyeOff, ShieldCheck, Info, Bot } from "lucide-react";
 import type { Application, Seller } from "@shared/schema";
 
 const SUPPORTED_LANGUAGES = [
@@ -899,103 +899,212 @@ function SellerTab({ appId }: { appId: string }) {
     toast({ title: "Copied to clipboard" });
   };
 
-  return (
-    <Card className="p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="font-semibold">Seller Keys</h3>
-          <p className="text-sm text-muted-foreground">Create seller keys to allow resellers to manage licenses and users via API.</p>
-        </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="button-create-seller">
-          <Plus className="mr-2 h-4 w-4" /> Create Seller
-        </Button>
-      </div>
+  const sellerApiLink = `${window.location.origin}/api/seller`;
 
-      {isLoading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      ) : sellers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-8 text-center">
-          <ShieldCheck className="mb-3 h-10 w-10 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">No seller keys created yet.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Seller Key</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sellers.map(seller => (
-                <TableRow key={seller.id} data-testid={`row-seller-${seller.id}`}>
-                  <TableCell className="font-medium">{seller.name}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <code className="text-xs bg-muted px-2 py-0.5 rounded max-w-[200px] truncate">
-                        {visibleKeys.has(seller.id) ? seller.sellerKey : "••••••••••••••••"}
-                      </code>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleKeyVisibility(seller.id)} data-testid={`button-toggle-key-${seller.id}`}>
-                        {visibleKeys.has(seller.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(seller.sellerKey)} data-testid={`button-copy-key-${seller.id}`}>
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={seller.enabled ? "secondary" : "destructive"}>
-                      {seller.enabled ? "Active" : "Disabled"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {seller.canCreateLicenses && <Badge variant="outline" className="text-xs">+License</Badge>}
-                      {seller.canDeleteLicenses && <Badge variant="outline" className="text-xs">-License</Badge>}
-                      {seller.canCreateUsers && <Badge variant="outline" className="text-xs">+User</Badge>}
-                      {seller.canDeleteUsers && <Badge variant="outline" className="text-xs">-User</Badge>}
-                      {seller.canResetUserHwid && <Badge variant="outline" className="text-xs">HWID</Badge>}
-                      {seller.canBanUsers && <Badge variant="outline" className="text-xs">Ban</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-1">
-                      <Switch
-                        checked={seller.enabled ?? true}
-                        onCheckedChange={(checked) => toggleEnabled.mutate({ id: seller.id, enabled: checked })}
-                        data-testid={`switch-seller-${seller.id}`}
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h3 className="mb-5 text-lg font-semibold">Configuration</h3>
+          <div className="space-y-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Seller API Link</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={sellerApiLink}
+                  className="font-mono text-sm bg-muted"
+                  data-testid="input-seller-api-link"
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => copyToClipboard(sellerApiLink)}
+                  data-testid="button-copy-seller-api-link"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {sellers.length > 0 && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Seller Key</label>
+                {sellers.map(seller => (
+                  <div key={seller.id} className="mb-3">
+                    {sellers.length > 1 && (
+                      <span className="mb-1 block text-xs text-muted-foreground">{seller.name}</span>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={visibleKeys.has(seller.id) ? seller.sellerKey : "••••••••••••••••••••••••••••••••••••••••"}
+                        className="font-mono text-sm bg-muted"
+                        data-testid={`input-seller-key-${seller.id}`}
                       />
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => deleteSeller.mutate(seller.id)}
-                        data-testid={`button-delete-seller-${seller.id}`}
+                        onClick={() => toggleKeyVisibility(seller.id)}
+                        data-testid={`button-toggle-key-${seller.id}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {visibleKeys.has(seller.id) ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => copyToClipboard(seller.sellerKey)}
+                        data-testid={`button-copy-key-${seller.id}`}
+                      >
+                        <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
 
-      <div className="mt-6 rounded-md border p-4">
-        <h4 className="mb-2 font-medium text-sm">Seller API Usage</h4>
-        <p className="text-xs text-muted-foreground mb-3">
+        <Card className="p-6">
+          <h3 className="mb-5 text-lg font-semibold">Bots</h3>
+          <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
+              <div>
+                <p className="mb-2 text-sm font-medium">Notice!</p>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Bots allow you to control your entire application without having to log into the website.
+                </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <Bot className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
+                    <span>
+                      Telegram Bot starting commands: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/setseller</code>
+                    </span>
+                  </li>
+                </ul>
+                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                  <p className="font-medium text-sm text-foreground">Available commands after setup:</p>
+                  <div className="grid grid-cols-1 gap-1">
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/setseller</code> - Select or add application</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/create</code> - Create license key(s)</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/delkey</code> - Delete a license key</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/getkeys</code> - Export all license keys</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/keyinfo</code> - Get license key info</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/verify</code> - Verify a license exists</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/adduser</code> - Create a user</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/deluser</code> - Delete a user</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/getusers</code> - Export all users</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/userdata</code> - Get user details</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/resethwid</code> - Reset user HWID</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/ban</code> / <code className="rounded bg-muted px-1.5 py-0.5 font-mono">/unban</code> - Ban/unban a user</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/stats</code> - View app statistics</div>
+                    <div><code className="rounded bg-muted px-1.5 py-0.5 font-mono">/appdetails</code> - View app details</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">Seller Keys</h3>
+            <p className="text-sm text-muted-foreground">Create seller keys to allow resellers to manage licenses and users via API.</p>
+          </div>
+          <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="button-create-seller">
+            <Plus className="mr-2 h-4 w-4" /> Create Seller
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : sellers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <ShieldCheck className="mb-3 h-10 w-10 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No seller keys created yet.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Seller Key</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Permissions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sellers.map(seller => (
+                  <TableRow key={seller.id} data-testid={`row-seller-${seller.id}`}>
+                    <TableCell className="font-medium">{seller.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <code className="text-xs bg-muted px-2 py-0.5 rounded max-w-[200px] truncate">
+                          {visibleKeys.has(seller.id) ? seller.sellerKey : "••••••••••••••••"}
+                        </code>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleKeyVisibility(seller.id)} data-testid={`button-toggle-key-tbl-${seller.id}`}>
+                          {visibleKeys.has(seller.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(seller.sellerKey)} data-testid={`button-copy-key-tbl-${seller.id}`}>
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={seller.enabled ? "secondary" : "destructive"}>
+                        {seller.enabled ? "Active" : "Disabled"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {seller.canCreateLicenses && <Badge variant="outline" className="text-xs">+License</Badge>}
+                        {seller.canDeleteLicenses && <Badge variant="outline" className="text-xs">-License</Badge>}
+                        {seller.canCreateUsers && <Badge variant="outline" className="text-xs">+User</Badge>}
+                        {seller.canDeleteUsers && <Badge variant="outline" className="text-xs">-User</Badge>}
+                        {seller.canResetUserHwid && <Badge variant="outline" className="text-xs">HWID</Badge>}
+                        {seller.canBanUsers && <Badge variant="outline" className="text-xs">Ban</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <Switch
+                          checked={seller.enabled ?? true}
+                          onCheckedChange={(checked) => toggleEnabled.mutate({ id: seller.id, enabled: checked })}
+                          data-testid={`switch-seller-${seller.id}`}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => deleteSeller.mutate(seller.id)}
+                          data-testid={`button-delete-seller-${seller.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="mb-4 text-lg font-semibold">API Reference</h3>
+        <p className="mb-3 text-sm text-muted-foreground">
           Sellers can use the API endpoint to manage licenses and users programmatically.
         </p>
-        <code className="block text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre">{`POST ${window.location.origin}/api/seller
+        <code className="block text-xs bg-muted p-4 rounded overflow-x-auto whitespace-pre font-mono">{`POST ${sellerApiLink}
 
 // Create license
 { "sellerkey": "YOUR_SELLER_KEY", "type": "add", "expiry": "1", "amount": "1", "level": "1" }
@@ -1012,12 +1121,34 @@ function SellerTab({ appId }: { appId: string }) {
 // Reset HWID
 { "sellerkey": "YOUR_SELLER_KEY", "type": "resetuser", "user": "username" }
 
-// Ban user
+// Ban / Unban user
 { "sellerkey": "YOUR_SELLER_KEY", "type": "banuser", "user": "username" }
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "unbanuser", "user": "username" }
 
-// Unban user
-{ "sellerkey": "YOUR_SELLER_KEY", "type": "unbanuser", "user": "username" }`}</code>
-      </div>
+// Get app stats
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "stats" }
+
+// Get app details
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "appdetails" }
+
+// Get all licenses
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "fetchallkeys" }
+
+// Get all users
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "fetchallusers" }
+
+// Get license info
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "info", "key": "LICENSE_KEY" }
+
+// Verify license exists
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "verify", "key": "LICENSE_KEY" }
+
+// Get user data
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "getuserdata", "user": "username" }
+
+// Validate seller key
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "validate" }`}</code>
+      </Card>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
@@ -1078,6 +1209,6 @@ function SellerTab({ appId }: { appId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 }

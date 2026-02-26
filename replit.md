@@ -76,9 +76,12 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 - File: `server/telegram-bot.ts`
 - Requires `TELEGRAM_BOT_TOKEN` secret to activate (gracefully skips if not set)
 - Uses the platform's own Seller API (`/api/seller`) for all operations
-- Commands: /start, /help, /addapp, /myapps, /selectapp, /removeapp, /create, /delkey, /adduser, /deluser, /resethwid, /ban, /unban, /status
-- Sellers add their seller key via the bot, then manage licenses/users via conversational commands
+- Commands: /start, /help, /setseller, /addapp, /myapps, /selectapp, /removeapp, /create, /delkey, /getkeys, /keyinfo, /verify, /adduser, /deluser, /getusers, /userdata, /resethwid, /ban, /unban, /stats, /appdetails, /status
+- Sellers add their seller key via the bot (/setseller), then manage licenses/users via conversational commands
 - In-memory state management for multi-step conversations with 5-minute timeout
+
+## Seller API (POST /api/seller)
+Extended seller API types: add, del, adduser, deluser, resetuser, banuser, unbanuser, validate, appdetails, stats, fetchallkeys, fetchallusers, info, verify, getuserdata
 
 ## Recent Changes
 - 2026-02-26: Added Telegram bot (grammy) for managing licenses/users via seller API

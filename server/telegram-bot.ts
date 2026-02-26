@@ -94,26 +94,37 @@ export function startTelegramBot() {
     );
   });
 
+  const helpText =
+    "📖 *Available Commands*\n\n" +
+    "*Application*\n" +
+    "/setseller \\- Select or add application\n" +
+    "/addapp \\- Add a new application\n" +
+    "/myapps \\- List your applications\n" +
+    "/selectapp \\- Select active application\n" +
+    "/removeapp \\- Remove an application\n" +
+    "/appdetails \\- View app details\n" +
+    "/stats \\- View app statistics\n\n" +
+    "*Licenses*\n" +
+    "/create \\- Create license key\\(s\\)\n" +
+    "/delkey \\- Delete a license key\n" +
+    "/getkeys \\- Export all license keys\n" +
+    "/keyinfo \\- Get license key info\n" +
+    "/verify \\- Verify a license exists\n\n" +
+    "*Users*\n" +
+    "/adduser \\- Create a user\n" +
+    "/deluser \\- Delete a user\n" +
+    "/resethwid \\- Reset user HWID\n" +
+    "/ban \\- Ban a user\n" +
+    "/unban \\- Unban a user\n" +
+    "/getusers \\- Export all users\n" +
+    "/userdata \\- Get user details\n\n" +
+    "*Info*\n" +
+    "/status \\- Show current app selection\n" +
+    "/help \\- Show this message";
+
   bot.command("help", async (ctx) => {
     await ctx.reply(
-      "📖 *Available Commands*\n\n" +
-      "*Application*\n" +
-      "/addapp \\- Add a new application\n" +
-      "/myapps \\- List your applications\n" +
-      "/selectapp \\- Select active application\n" +
-      "/removeapp \\- Remove an application\n\n" +
-      "*Licenses*\n" +
-      "/create \\- Create a license key\n" +
-      "/delkey \\- Delete a license key\n\n" +
-      "*Users*\n" +
-      "/adduser \\- Create a user\n" +
-      "/deluser \\- Delete a user\n" +
-      "/resethwid \\- Reset user HWID\n" +
-      "/ban \\- Ban a user\n" +
-      "/unban \\- Unban a user\n\n" +
-      "*Info*\n" +
-      "/status \\- Show current app selection\n" +
-      "/help \\- Show this message",
+      helpText,
       { parse_mode: "MarkdownV2" }
     );
   });
@@ -121,26 +132,28 @@ export function startTelegramBot() {
   bot.callbackQuery("help_info", async (ctx) => {
     await ctx.answerCallbackQuery();
     await ctx.reply(
-      "📖 *Available Commands*\n\n" +
-      "*Application*\n" +
-      "/addapp \\- Add a new application\n" +
-      "/myapps \\- List your applications\n" +
-      "/selectapp \\- Select active application\n" +
-      "/removeapp \\- Remove an application\n\n" +
-      "*Licenses*\n" +
-      "/create \\- Create a license key\n" +
-      "/delkey \\- Delete a license key\n\n" +
-      "*Users*\n" +
-      "/adduser \\- Create a user\n" +
-      "/deluser \\- Delete a user\n" +
-      "/resethwid \\- Reset user HWID\n" +
-      "/ban \\- Ban a user\n" +
-      "/unban \\- Unban a user\n\n" +
-      "*Info*\n" +
-      "/status \\- Show current app selection\n" +
-      "/help \\- Show this message",
+      helpText,
       { parse_mode: "MarkdownV2" }
     );
+  });
+
+  bot.command("setseller", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const apps: Array<{ name: string; sellerkey: string }> = db.get(`applications.${userId}`) || [];
+    const selectedKey = getSellerKey(db, userId);
+    const keyboard = new InlineKeyboard();
+
+    if (apps.length > 0) {
+      apps.forEach((app, i) => {
+        const marker = app.sellerkey === selectedKey ? " (Selected)" : "";
+        keyboard.text(`${app.name}${marker}`, `select_app_${i}`).row();
+      });
+    }
+    keyboard.text("Create new application", "add_app");
+
+    await ctx.reply("Please click on one of your applications to select it.", { reply_markup: keyboard });
   });
 
   bot.command("addapp", async (ctx) => {
@@ -760,6 +773,254 @@ export function startTelegramBot() {
       await ctx.reply(`❌ Error: ${response.message}`);
     } else {
       await ctx.reply(`✅ User "${username}" has been unbanned.`);
+    }
+    clearState(userId);
+  }
+
+  bot.command("stats", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    const loading = await ctx.reply("⏳ Fetching statistics...");
+    const response = await sellerRequest({ sellerkey: sellerKey, type: "stats" });
+
+    if (!response.success) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, `❌ Error: ${response.message}`);
+      return;
+    }
+
+    await ctx.api.editMessageText(
+      loading.chat.id,
+      loading.message_id,
+      `📊 *Application Statistics*\n\n` +
+      `*🔑 License Keys:*\n` +
+      `Unused Keys: ${esc(response.unused || 0)}\n` +
+      `Used Keys: ${esc(response.used || 0)}\n` +
+      `Total Keys: ${esc(response.totalkeys || 0)}\n\n` +
+      `*👥 Users:*\n` +
+      `Total Users: ${esc(response.totalusers || 0)}\n` +
+      `Banned Users: ${esc(response.bannedusers || 0)}\n\n` +
+      `*🎟️ Tokens:*\n` +
+      `Total Tokens: ${esc(response.totaltokens || 0)}`,
+      { parse_mode: "MarkdownV2" }
+    );
+  });
+
+  bot.command("appdetails", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    const loading = await ctx.reply("⏳ Fetching app details...");
+    const response = await sellerRequest({ sellerkey: sellerKey, type: "appdetails" });
+
+    if (!response.success) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, `❌ Error: ${response.message}`);
+      return;
+    }
+
+    const d = response.appdetails || {};
+    await ctx.api.editMessageText(
+      loading.chat.id,
+      loading.message_id,
+      `📱 *Application Details*\n\n` +
+      `*Name:* ${esc(d.name)}\n` +
+      `*Version:* ${esc(d.version)}\n` +
+      `*Enabled:* ${d.enabled ? "Yes" : "No"}`,
+      { parse_mode: "MarkdownV2" }
+    );
+  });
+
+  bot.command("getkeys", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    const loading = await ctx.reply("⏳ Getting license keys...");
+    const response = await sellerRequest({ sellerkey: sellerKey, type: "fetchallkeys" });
+
+    if (!response.success) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, `❌ Error: ${response.message}`);
+      return;
+    }
+
+    const keys = response.keys || [];
+    if (keys.length === 0) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, "❌ No license keys found.");
+      return;
+    }
+
+    await ctx.api.editMessageText(loading.chat.id, loading.message_id, `✅ Found ${keys.length} license keys. Sending as file...`);
+    const { InputFile } = await import("grammy");
+    const jsonData = JSON.stringify(keys, null, 2);
+    await ctx.replyWithDocument(
+      new InputFile(Buffer.from(jsonData, "utf-8"), `license_keys_${Date.now()}.json`),
+      { caption: `📄 License Keys - ${keys.length} total` }
+    );
+  });
+
+  bot.command("getusers", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    const loading = await ctx.reply("⏳ Getting users...");
+    const response = await sellerRequest({ sellerkey: sellerKey, type: "fetchallusers" });
+
+    if (!response.success) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, `❌ Error: ${response.message}`);
+      return;
+    }
+
+    const users = response.users || [];
+    if (users.length === 0) {
+      await ctx.api.editMessageText(loading.chat.id, loading.message_id, "❌ No users found.");
+      return;
+    }
+
+    await ctx.api.editMessageText(loading.chat.id, loading.message_id, `✅ Found ${users.length} users. Sending as file...`);
+    const { InputFile } = await import("grammy");
+    const jsonData = JSON.stringify(users, null, 2);
+    await ctx.replyWithDocument(
+      new InputFile(Buffer.from(jsonData, "utf-8"), `users_${Date.now()}.json`),
+      { caption: `📄 Users - ${users.length} total` }
+    );
+  });
+
+  bot.command("keyinfo", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    await ctx.reply("Enter the license key to get info about:");
+    setState(userId, handleKeyInfo, { sellerKey });
+  });
+
+  async function handleKeyInfo(ctx: Context, _bot: Bot, _db: BotDB) {
+    const userId = ctx.from?.id;
+    const key = ctx.message?.text?.trim();
+    if (!userId || !key) return;
+
+    const state = states.get(userId);
+    if (!state) return;
+
+    const response = await sellerRequest({ sellerkey: state.data.sellerKey, type: "info", key });
+
+    if (!response.success) {
+      await ctx.reply(`❌ Error: ${response.message}`);
+    } else {
+      await ctx.reply(
+        `✅ License Info:\n\n` +
+        `Key: ${response.key}\n` +
+        `Level: ${response.level}\n` +
+        `Duration: ${response.duration} ${response.durationUnit || "days"}\n` +
+        `Enabled: ${response.enabled ? "Yes" : "No"}\n` +
+        `Used: ${response.usedCount || 0}/${response.maxUses || 1}\n` +
+        `Note: ${response.note || "None"}\n` +
+        `Created: ${response.createdAt ? new Date(response.createdAt).toLocaleDateString() : "N/A"}\n` +
+        `Expires: ${response.expiresAt ? new Date(response.expiresAt).toLocaleDateString() : "Never"}`
+      );
+    }
+    clearState(userId);
+  }
+
+  bot.command("verify", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    await ctx.reply("Enter the license key to verify:");
+    setState(userId, handleVerify, { sellerKey });
+  });
+
+  async function handleVerify(ctx: Context, _bot: Bot, _db: BotDB) {
+    const userId = ctx.from?.id;
+    const key = ctx.message?.text?.trim();
+    if (!userId || !key) return;
+
+    const state = states.get(userId);
+    if (!state) return;
+
+    const response = await sellerRequest({ sellerkey: state.data.sellerKey, type: "verify", key });
+
+    if (!response.success) {
+      await ctx.reply(`❌ License not found: ${key}`);
+    } else {
+      await ctx.reply(`✅ License exists: ${key}`);
+    }
+    clearState(userId);
+  }
+
+  bot.command("userdata", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const sellerKey = getSellerKey(db, userId);
+    if (!sellerKey) {
+      await ctx.reply("⚠️ No application selected. Use /addapp or /selectapp first.");
+      return;
+    }
+
+    await ctx.reply("Enter the username to look up:");
+    setState(userId, handleUserData, { sellerKey });
+  });
+
+  async function handleUserData(ctx: Context, _bot: Bot, _db: BotDB) {
+    const userId = ctx.from?.id;
+    const username = ctx.message?.text?.trim();
+    if (!userId || !username) return;
+
+    const state = states.get(userId);
+    if (!state) return;
+
+    const response = await sellerRequest({ sellerkey: state.data.sellerKey, type: "getuserdata", user: username });
+
+    if (!response.success) {
+      await ctx.reply(`❌ Error: ${response.message}`);
+    } else {
+      await ctx.reply(
+        `✅ User Data for ${response.username}:\n\n` +
+        `Username: ${response.username}\n` +
+        `Email: ${response.email || "None"}\n` +
+        `IP: ${response.ip || "None"}\n` +
+        `HWID: ${response.hwid || "None"}\n` +
+        `Banned: ${response.banned ? "Yes" : "No"}\n` +
+        `Level: ${response.level || "N/A"}\n` +
+        `Last Login: ${response.lastLogin ? new Date(response.lastLogin).toLocaleString() : "Never"}\n` +
+        `Created: ${response.createdAt ? new Date(response.createdAt).toLocaleDateString() : "N/A"}\n` +
+        `Expires: ${response.expiresAt ? new Date(response.expiresAt).toLocaleDateString() : "Never"}`
+      );
     }
     clearState(userId);
   }
