@@ -90,7 +90,9 @@ export default function AppUsersPage() {
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [subscription, setSubscription] = useState("1");
-  const [expiration, setExpiration] = useState("");
+  const [expirationUnit, setExpirationUnit] = useState("1d");
+  const [expirationCustom, setExpirationCustom] = useState("");
+  const [maxHwid, setMaxHwid] = useState("1");
   const [hwidAffected, setHwidAffected] = useState(false);
   const [createHwid, setCreateHwid] = useState("");
 
@@ -145,6 +147,28 @@ export default function AppUsersPage() {
   const getAppName = (appId: string) =>
     apps?.find((a) => a.id === appId)?.name || "Unknown";
 
+  function getExpirationDate(): string | undefined {
+    const unit = expirationUnit;
+    if (unit === "custom") {
+      if (!expirationCustom) return undefined;
+      return expirationCustom;
+    }
+    const now = new Date();
+    const durations: Record<string, number> = {
+      "1h": 60 * 60 * 1000,
+      "1d": 24 * 60 * 60 * 1000,
+      "7d": 7 * 24 * 60 * 60 * 1000,
+      "30d": 30 * 24 * 60 * 60 * 1000,
+      "90d": 90 * 24 * 60 * 60 * 1000,
+      "180d": 180 * 24 * 60 * 60 * 1000,
+      "365d": 365 * 24 * 60 * 60 * 1000,
+      "lifetime": 100 * 365 * 24 * 60 * 60 * 1000,
+    };
+    const ms = durations[unit];
+    if (!ms) return undefined;
+    return new Date(now.getTime() + ms).toISOString();
+  }
+
   const createUser = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/app-users", {
@@ -153,8 +177,9 @@ export default function AppUsersPage() {
         password: password || undefined,
         email: email || undefined,
         level: parseInt(subscription) || 1,
-        expiresAt: expiration || undefined,
+        expiresAt: getExpirationDate(),
         hwid: hwidAffected ? (createHwid || undefined) : undefined,
+        maxHwid: parseInt(maxHwid) || 1,
       });
       return res.json();
     },
@@ -165,7 +190,9 @@ export default function AppUsersPage() {
       setPassword("");
       setEmail("");
       setSubscription("1");
-      setExpiration("");
+      setExpirationUnit("1d");
+      setExpirationCustom("");
+      setMaxHwid("1");
       setHwidAffected(false);
       setCreateHwid("");
       toast({ title: "User created successfully" });
@@ -681,12 +708,46 @@ export default function AppUsersPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">Expiration <span className="text-destructive">*</span></label>
-              <Input
-                type="datetime-local"
-                value={expiration}
-                onChange={(e) => setExpiration(e.target.value)}
-                data-testid="input-user-expiration"
-              />
+              <Select value={expirationUnit} onValueChange={setExpirationUnit}>
+                <SelectTrigger data-testid="select-user-expiration">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1h">1 Hour</SelectItem>
+                  <SelectItem value="1d">1 Day</SelectItem>
+                  <SelectItem value="7d">7 Days</SelectItem>
+                  <SelectItem value="30d">30 Days</SelectItem>
+                  <SelectItem value="90d">90 Days</SelectItem>
+                  <SelectItem value="180d">180 Days</SelectItem>
+                  <SelectItem value="365d">365 Days</SelectItem>
+                  <SelectItem value="lifetime">Lifetime</SelectItem>
+                  <SelectItem value="custom">Custom Date</SelectItem>
+                </SelectContent>
+              </Select>
+              {expirationUnit === "custom" && (
+                <Input
+                  className="mt-2"
+                  type="datetime-local"
+                  value={expirationCustom}
+                  onChange={(e) => setExpirationCustom(e.target.value)}
+                  data-testid="input-user-expiration-custom"
+                />
+              )}
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Max HWID <span className="text-destructive">*</span></label>
+              <Select value={maxHwid} onValueChange={setMaxHwid}>
+                <SelectTrigger data-testid="select-user-max-hwid">
+                  <SelectValue placeholder="Max devices" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Device</SelectItem>
+                  <SelectItem value="2">2 Devices</SelectItem>
+                  <SelectItem value="3">3 Devices</SelectItem>
+                  <SelectItem value="5">5 Devices</SelectItem>
+                  <SelectItem value="0">Unlimited</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Checkbox
@@ -718,7 +779,7 @@ export default function AppUsersPage() {
             </Button>
             <Button
               onClick={() => createUser.mutate()}
-              disabled={!selectedAppId || !username.trim() || !expiration || createUser.isPending}
+              disabled={!selectedAppId || !username.trim() || (expirationUnit === "custom" && !expirationCustom) || createUser.isPending}
               data-testid="button-submit-user"
             >
               {createUser.isPending ? "Creating..." : "Create User"}
