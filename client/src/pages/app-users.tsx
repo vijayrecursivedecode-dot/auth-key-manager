@@ -707,15 +707,23 @@ export default function AppUsersPage() {
                 />
               </div>
             )}
+          </div>
+          <DialogFooter className="gap-2 pt-2">
             <Button
-              className="w-full"
+              variant="outline"
+              onClick={() => setCreateOpen(false)}
+              data-testid="button-cancel-create-user"
+            >
+              Cancel
+            </Button>
+            <Button
               onClick={() => createUser.mutate()}
               disabled={!selectedAppId || !username.trim() || !expiration || createUser.isPending}
               data-testid="button-submit-user"
             >
               {createUser.isPending ? "Creating..." : "Create User"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
