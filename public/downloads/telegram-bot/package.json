@@ -1,0 +1,13 @@
+{
+  "name": "keyauth-manager-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram Bot for KeyAuth Manager - Manage licenses and users via Telegram",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "grammy": "^1.36.3",
+    "axios": "^1.10.0"
+  }
+}

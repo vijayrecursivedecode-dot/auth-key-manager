@@ -4,6 +4,9 @@ import { randomUUID, createHash, createHmac } from "crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import sodium from "libsodium-wrappers";
+import archiver from "archiver";
+import path from "path";
+import fs from "fs";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { storage } from "./storage";
 import { users } from "@shared/models/auth";
@@ -1494,6 +1497,24 @@ export async function registerRoutes(
       console.error("Error deleting token:", error);
       res.status(500).json({ message: "Failed to delete token" });
     }
+  });
+
+  app.get("/api/download/telegram-bot", (req, res) => {
+    const botDir = path.join(process.cwd(), "public", "downloads", "telegram-bot");
+    if (!fs.existsSync(botDir)) {
+      return res.status(404).json({ message: "Bot files not found" });
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=keyauth-telegram-bot.zip");
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (err: Error) => {
+      res.status(500).json({ message: "Failed to create archive" });
+    });
+    archive.pipe(res);
+    archive.directory(botDir, "keyauth-telegram-bot");
+    archive.finalize();
   });
 
   return httpServer;

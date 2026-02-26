@@ -970,16 +970,46 @@ function SellerTab({ appId }: { appId: string }) {
           <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
             <div className="flex items-start gap-3">
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
-              <div>
+              <div className="flex-1">
                 <p className="mb-2 text-sm font-medium">Notice!</p>
                 <p className="mb-3 text-sm text-muted-foreground">
-                  Bots allow you to control your entire application without having to log into the website.
+                  Bots allow you to control your entire application without having to log into the website. Download the bot source code, add your Telegram Bot Token and seller key, then run it on any server.
                 </p>
+
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    data-testid="button-download-telegram-bot"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = "/api/download/telegram-bot";
+                      a.download = "keyauth-telegram-bot.zip";
+                      a.click();
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Telegram Bot
+                  </Button>
+                </div>
+
+                <div className="mb-3 rounded border border-border bg-muted/50 p-3">
+                  <p className="mb-2 text-xs font-medium text-foreground">Quick Setup:</p>
+                  <ol className="list-inside list-decimal space-y-1 text-xs text-muted-foreground">
+                    <li>Create a bot via <strong>@BotFather</strong> on Telegram</li>
+                    <li>Download the bot files above</li>
+                    <li>Copy <code className="rounded bg-muted px-1 py-0.5 font-mono">.env.example</code> to <code className="rounded bg-muted px-1 py-0.5 font-mono">.env</code></li>
+                    <li>Set <code className="rounded bg-muted px-1 py-0.5 font-mono">TELEGRAM_BOT_TOKEN</code> and <code className="rounded bg-muted px-1 py-0.5 font-mono">API_URL</code></li>
+                    <li>Run <code className="rounded bg-muted px-1 py-0.5 font-mono">npm install && npm start</code></li>
+                  </ol>
+                </div>
+
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <Bot className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
                     <span>
-                      Telegram Bot starting commands: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/setseller</code>
+                      Starting command: <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/setseller</code>
                     </span>
                   </li>
                 </ul>

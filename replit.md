@@ -73,8 +73,11 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 
 ## Telegram Bot
 - Built with grammy framework, integrated into Express server startup
-- File: `server/telegram-bot.ts`
-- Requires `TELEGRAM_BOT_TOKEN` secret to activate (gracefully skips if not set)
+- Server-side bot: `server/telegram-bot.ts` — requires `TELEGRAM_BOT_TOKEN` secret to activate
+- Downloadable standalone bot: `public/downloads/telegram-bot/` — users download from App Settings > Seller tab
+  - Self-contained Node.js bot that users run on their own server
+  - Configurable via `.env` file (TELEGRAM_BOT_TOKEN + API_URL pointing to seller API)
+  - Download endpoint: GET `/api/download/telegram-bot` (serves zip file via archiver)
 - Uses the platform's own Seller API (`/api/seller`) for all operations
 - Commands: /start, /help, /setseller, /addapp, /myapps, /selectapp, /removeapp, /create, /delkey, /getkeys, /keyinfo, /verify, /adduser, /deluser, /getusers, /userdata, /resethwid, /ban, /unban, /stats, /appdetails, /status
 - Sellers add their seller key via the bot (/setseller), then manage licenses/users via conversational commands
