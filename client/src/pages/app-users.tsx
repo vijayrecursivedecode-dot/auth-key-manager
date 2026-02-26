@@ -179,7 +179,7 @@ export default function AppUsersPage() {
         level: parseInt(subscription) || 1,
         expiresAt: getExpirationDate(),
         hwid: hwidAffected ? (createHwid || undefined) : undefined,
-        maxHwid: parseInt(maxHwid) || 1,
+        maxHwid: parseInt(maxHwid),
       });
       return res.json();
     },

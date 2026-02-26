@@ -212,7 +212,7 @@ function registerClientApi(app: Express) {
             return sendRes({ success: false, message: "Subscription expired." });
           }
           const currentHwidList: string[] = (appUser as any).hwidList || [];
-          const userMaxHwid = (appUser as any).maxHwid || 1;
+          const userMaxHwid = (appUser as any).maxHwid !== null && (appUser as any).maxHwid !== undefined ? (appUser as any).maxHwid : 1;
           if (hwid && userMaxHwid > 0) {
             if (!currentHwidList.includes(hwid) && currentHwidList.length >= userMaxHwid) {
               return sendRes({ success: false, message: `Device limit reached. Maximum ${userMaxHwid} device(s) allowed.` });
@@ -989,7 +989,7 @@ export async function registerRoutes(
         level: level !== undefined ? parseInt(level) : 1,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         hwid: hwid || null,
-        maxHwid: maxHwid !== undefined ? parseInt(maxHwid) : 1,
+        maxHwid: maxHwid !== undefined && maxHwid !== null ? parseInt(maxHwid) : 1,
       });
       res.json(user);
     } catch (error) {
