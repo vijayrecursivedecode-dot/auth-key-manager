@@ -519,6 +519,10 @@ export default function AppUsersPage() {
                       <span>{user.level}</span>
                     </div>
                     <div>
+                      <span className="text-muted-foreground">Devices:</span>{" "}
+                      <span>{(user as any).maxHwid === 0 ? "Unlimited" : `${(user as any).maxHwid || 1}`}</span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">HWID:</span>{" "}
                       <span className="truncate">{user.hwid ? "Yes" : "N/A"}</span>
                     </div>
@@ -544,6 +548,7 @@ export default function AppUsersPage() {
                     <TableHead>IP</TableHead>
                     <TableHead>Level</TableHead>
                     <TableHead>HWID</TableHead>
+                    <TableHead>Devices</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -582,6 +587,11 @@ export default function AppUsersPage() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground truncate max-w-[100px]">
                         {user.hwid ? "Yes" : "N/A"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" data-testid={`badge-devices-${user.id}`}>
+                          {(user as any).maxHwid === 0 ? "Unlimited" : `${(user as any).maxHwid || 1}`}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -749,25 +759,6 @@ export default function AppUsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <Checkbox
-                checked={hwidAffected}
-                onCheckedChange={(checked) => setHwidAffected(checked === true)}
-                data-testid="checkbox-hwid-affected"
-              />
-              <label className="text-sm font-medium">HWID Affected</label>
-            </div>
-            {hwidAffected && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">HWID</label>
-                <Input
-                  value={createHwid}
-                  onChange={(e) => setCreateHwid(e.target.value)}
-                  placeholder="Hardware ID"
-                  data-testid="input-user-hwid"
-                />
-              </div>
-            )}
           </div>
           <DialogFooter className="gap-2 pt-2">
             <Button
