@@ -22,8 +22,25 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink, Download, FileCode } from "lucide-react";
-import type { Application } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Save, RotateCcw, Settings, Copy, RefreshCw, Code, ExternalLink, Download, FileCode, Plus, Trash2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import type { Application, Seller } from "@shared/schema";
 
 const SUPPORTED_LANGUAGES = [
   "C#", "C++", "Python", "PHP", "JavaScript", "TypeScript",
@@ -307,6 +324,9 @@ export default function AppSettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="sdk" data-testid="tab-sdk">
               SDK Downloads
+            </TabsTrigger>
+            <TabsTrigger value="seller" data-testid="tab-seller">
+              Seller
             </TabsTrigger>
           </TabsList>
 
@@ -786,8 +806,278 @@ public static api KeyAuthApp = new api(
               </div>
             </Card>
           </TabsContent>
+
+          <TabsContent value="seller" className="mt-4 space-y-4">
+            <SellerTab appId={selectedApp.id} />
+          </TabsContent>
         </Tabs>
       )}
     </div>
+  );
+}
+
+function SellerTab({ appId }: { appId: string }) {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sellerName, setSellerName] = useState("");
+  const [canCreateLicenses, setCanCreateLicenses] = useState(true);
+  const [canDeleteLicenses, setCanDeleteLicenses] = useState(false);
+  const [canCreateUsers, setCanCreateUsers] = useState(true);
+  const [canDeleteUsers, setCanDeleteUsers] = useState(false);
+  const [canResetUserHwid, setCanResetUserHwid] = useState(false);
+  const [canBanUsers, setCanBanUsers] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+
+  const { data: allSellers, isLoading } = useQuery<Seller[]>({
+    queryKey: ["/api/sellers"],
+  });
+
+  const sellers = allSellers?.filter(s => s.appId === appId) || [];
+
+  const createSeller = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sellers", {
+        appId,
+        name: sellerName,
+        canCreateLicenses,
+        canDeleteLicenses,
+        canCreateUsers,
+        canDeleteUsers,
+        canResetUserHwid,
+        canBanUsers,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sellers"] });
+      setCreateOpen(false);
+      setSellerName("");
+      setCanCreateLicenses(true);
+      setCanDeleteLicenses(false);
+      setCanCreateUsers(true);
+      setCanDeleteUsers(false);
+      setCanResetUserHwid(false);
+      setCanBanUsers(false);
+      toast({ title: "Seller created successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const toggleEnabled = useMutation({
+    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
+      await apiRequest("PATCH", `/api/sellers/${id}`, { enabled });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sellers"] });
+      toast({ title: "Seller updated" });
+    },
+  });
+
+  const deleteSeller = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/sellers/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sellers"] });
+      toast({ title: "Seller deleted" });
+    },
+  });
+
+  const toggleKeyVisibility = (id: string) => {
+    setVisibleKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied to clipboard" });
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold">Seller Keys</h3>
+          <p className="text-sm text-muted-foreground">Create seller keys to allow resellers to manage licenses and users via API.</p>
+        </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)} data-testid="button-create-seller">
+          <Plus className="mr-2 h-4 w-4" /> Create Seller
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      ) : sellers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <ShieldCheck className="mb-3 h-10 w-10 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">No seller keys created yet.</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Seller Key</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Permissions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sellers.map(seller => (
+                <TableRow key={seller.id} data-testid={`row-seller-${seller.id}`}>
+                  <TableCell className="font-medium">{seller.name}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <code className="text-xs bg-muted px-2 py-0.5 rounded max-w-[200px] truncate">
+                        {visibleKeys.has(seller.id) ? seller.sellerKey : "••••••••••••••••"}
+                      </code>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleKeyVisibility(seller.id)} data-testid={`button-toggle-key-${seller.id}`}>
+                        {visibleKeys.has(seller.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyToClipboard(seller.sellerKey)} data-testid={`button-copy-key-${seller.id}`}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={seller.enabled ? "secondary" : "destructive"}>
+                      {seller.enabled ? "Active" : "Disabled"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {seller.canCreateLicenses && <Badge variant="outline" className="text-xs">+License</Badge>}
+                      {seller.canDeleteLicenses && <Badge variant="outline" className="text-xs">-License</Badge>}
+                      {seller.canCreateUsers && <Badge variant="outline" className="text-xs">+User</Badge>}
+                      {seller.canDeleteUsers && <Badge variant="outline" className="text-xs">-User</Badge>}
+                      {seller.canResetUserHwid && <Badge variant="outline" className="text-xs">HWID</Badge>}
+                      {seller.canBanUsers && <Badge variant="outline" className="text-xs">Ban</Badge>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <Switch
+                        checked={seller.enabled ?? true}
+                        onCheckedChange={(checked) => toggleEnabled.mutate({ id: seller.id, enabled: checked })}
+                        data-testid={`switch-seller-${seller.id}`}
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => deleteSeller.mutate(seller.id)}
+                        data-testid={`button-delete-seller-${seller.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <div className="mt-6 rounded-md border p-4">
+        <h4 className="mb-2 font-medium text-sm">Seller API Usage</h4>
+        <p className="text-xs text-muted-foreground mb-3">
+          Sellers can use the API endpoint to manage licenses and users programmatically.
+        </p>
+        <code className="block text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre">{`POST ${window.location.origin}/api/seller
+
+// Create license
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "add", "expiry": "1", "amount": "1", "level": "1" }
+
+// Delete license
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "del", "key": "LICENSE_KEY" }
+
+// Create user
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "adduser", "user": "username", "pass": "password", "expiry": "30" }
+
+// Delete user
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "deluser", "user": "username" }
+
+// Reset HWID
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "resetuser", "user": "username" }
+
+// Ban user
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "banuser", "user": "username" }
+
+// Unban user
+{ "sellerkey": "YOUR_SELLER_KEY", "type": "unbanuser", "user": "username" }`}</code>
+      </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Seller</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Seller Name <span className="text-destructive">*</span></label>
+              <Input
+                value={sellerName}
+                onChange={(e) => setSellerName(e.target.value)}
+                placeholder="Reseller name"
+                data-testid="input-seller-name"
+              />
+            </div>
+            <div>
+              <label className="mb-3 block text-sm font-medium">Permissions</label>
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canCreateLicenses} onCheckedChange={(c) => setCanCreateLicenses(c === true)} data-testid="checkbox-can-create-licenses" />
+                  <label className="text-sm">Create Licenses</label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canDeleteLicenses} onCheckedChange={(c) => setCanDeleteLicenses(c === true)} data-testid="checkbox-can-delete-licenses" />
+                  <label className="text-sm">Delete Licenses</label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canCreateUsers} onCheckedChange={(c) => setCanCreateUsers(c === true)} data-testid="checkbox-can-create-users" />
+                  <label className="text-sm">Create Users</label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canDeleteUsers} onCheckedChange={(c) => setCanDeleteUsers(c === true)} data-testid="checkbox-can-delete-users" />
+                  <label className="text-sm">Delete Users</label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canResetUserHwid} onCheckedChange={(c) => setCanResetUserHwid(c === true)} data-testid="checkbox-can-reset-hwid" />
+                  <label className="text-sm">Reset User HWID</label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Checkbox checked={canBanUsers} onCheckedChange={(c) => setCanBanUsers(c === true)} data-testid="checkbox-can-ban-users" />
+                  <label className="text-sm">Ban/Unban Users</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setCreateOpen(false)} data-testid="button-cancel-seller">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createSeller.mutate()}
+              disabled={!sellerName.trim() || createSeller.isPending}
+              data-testid="button-submit-seller"
+            >
+              {createSeller.isPending ? "Creating..." : "Create Seller"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

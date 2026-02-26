@@ -42,6 +42,7 @@ shared/
 - GET/POST/PATCH/DELETE `/api/licenses`
 - GET/POST/PATCH/DELETE `/api/app-users`
 - GET/POST/DELETE `/api/tokens`
+- GET/POST/PATCH/DELETE `/api/sellers`
 - GET `/api/statistics` - Aggregated analytics (totals, per-app breakdowns, by-level)
 
 ## Public Client API (POST /api/1.2/)

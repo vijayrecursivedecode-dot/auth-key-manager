@@ -87,6 +87,27 @@ export const tokens = pgTable(
   (table) => [index("idx_token_app").on(table.appId)]
 );
 
+export const sellers = pgTable(
+  "sellers",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    appId: varchar("app_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    sellerKey: text("seller_key").notNull().unique(),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").default(true),
+    canCreateLicenses: boolean("can_create_licenses").default(true),
+    canDeleteLicenses: boolean("can_delete_licenses").default(false),
+    canCreateUsers: boolean("can_create_users").default(true),
+    canDeleteUsers: boolean("can_delete_users").default(false),
+    canResetUserHwid: boolean("can_reset_user_hwid").default(false),
+    canBanUsers: boolean("can_ban_users").default(false),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [index("idx_seller_app").on(table.appId)]
+);
+
 export const insertApplicationSchema = createInsertSchema(applications).omit({
   id: true,
   secret: true,
@@ -112,6 +133,12 @@ export const insertTokenSchema = createInsertSchema(tokens).omit({
   createdAt: true,
 });
 
+export const insertSellerSchema = createInsertSchema(sellers).omit({
+  id: true,
+  sellerKey: true,
+  createdAt: true,
+});
+
 export type Application = typeof applications.$inferSelect;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type License = typeof licenses.$inferSelect;
@@ -120,3 +147,5 @@ export type AppUser = typeof appUsers.$inferSelect;
 export type InsertAppUser = z.infer<typeof insertAppUserSchema>;
 export type Token = typeof tokens.$inferSelect;
 export type InsertToken = z.infer<typeof insertTokenSchema>;
+export type Seller = typeof sellers.$inferSelect;
+export type InsertSeller = z.infer<typeof insertSellerSchema>;

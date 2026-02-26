@@ -6,6 +6,7 @@ import {
   licenses,
   appUsers,
   tokens,
+  sellers,
   type Application,
   type InsertApplication,
   type License,
@@ -14,6 +15,8 @@ import {
   type InsertAppUser,
   type Token,
   type InsertToken,
+  type Seller,
+  type InsertSeller,
 } from "@shared/schema";
 import { accounts, users, type Account, type User } from "@shared/models/auth";
 
@@ -95,6 +98,13 @@ export interface IStorage {
   getTokensByApp(appId: string): Promise<Token[]>;
   createTokens(appId: string, count: number): Promise<Token[]>;
   deleteToken(id: string): Promise<void>;
+
+  getSellersByApp(appId: string): Promise<Seller[]>;
+  getSellerByKey(sellerKey: string): Promise<Seller | undefined>;
+  getSeller(id: string): Promise<Seller | undefined>;
+  createSeller(data: InsertSeller): Promise<Seller>;
+  updateSeller(id: string, data: Partial<Seller>): Promise<Seller | undefined>;
+  deleteSeller(id: string): Promise<void>;
 
   getAccountByUsername(username: string): Promise<Account | undefined>;
   getAccountByUserId(userId: string): Promise<Account | undefined>;
@@ -307,6 +317,35 @@ export class DatabaseStorage implements IStorage {
 
   async deleteToken(id: string): Promise<void> {
     await db.delete(tokens).where(eq(tokens.id, id));
+  }
+
+  async getSellersByApp(appId: string): Promise<Seller[]> {
+    return db.select().from(sellers).where(eq(sellers.appId, appId));
+  }
+
+  async getSellerByKey(sellerKey: string): Promise<Seller | undefined> {
+    const [seller] = await db.select().from(sellers).where(eq(sellers.sellerKey, sellerKey));
+    return seller;
+  }
+
+  async getSeller(id: string): Promise<Seller | undefined> {
+    const [seller] = await db.select().from(sellers).where(eq(sellers.id, id));
+    return seller;
+  }
+
+  async createSeller(data: InsertSeller): Promise<Seller> {
+    const sellerKey = "seller_" + generateSecret().substring(0, 32);
+    const [seller] = await db.insert(sellers).values({ ...data, sellerKey }).returning();
+    return seller;
+  }
+
+  async updateSeller(id: string, data: Partial<Seller>): Promise<Seller | undefined> {
+    const [seller] = await db.update(sellers).set(data).where(eq(sellers.id, id)).returning();
+    return seller;
+  }
+
+  async deleteSeller(id: string): Promise<void> {
+    await db.delete(sellers).where(eq(sellers.id, id));
   }
 
   async getAccountByUsername(username: string): Promise<Account | undefined> {

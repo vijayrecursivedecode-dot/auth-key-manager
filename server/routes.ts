@@ -1106,6 +1106,173 @@ export async function registerRoutes(
     }
   });
 
+  // Seller CRUD routes
+  app.get("/api/sellers", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const apps = await storage.getApplicationsByOwner(userId);
+      const allSellers: any[] = [];
+      for (const app of apps) {
+        const s = await storage.getSellersByApp(app.id);
+        allSellers.push(...s);
+      }
+      res.json(allSellers);
+    } catch (error) {
+      console.error("Error fetching sellers:", error);
+      res.status(500).json({ message: "Failed to fetch sellers" });
+    }
+  });
+
+  app.post("/api/sellers", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { appId, name, canCreateLicenses, canDeleteLicenses, canCreateUsers, canDeleteUsers, canResetUserHwid, canBanUsers } = req.body;
+      if (!appId || !name) return res.status(400).json({ message: "Application and name are required" });
+      const app = await storage.getApplication(appId);
+      if (!app || app.ownerId !== userId) return res.status(404).json({ message: "Application not found" });
+      const seller = await storage.createSeller({
+        appId,
+        name,
+        canCreateLicenses: canCreateLicenses ?? true,
+        canDeleteLicenses: canDeleteLicenses ?? false,
+        canCreateUsers: canCreateUsers ?? true,
+        canDeleteUsers: canDeleteUsers ?? false,
+        canResetUserHwid: canResetUserHwid ?? false,
+        canBanUsers: canBanUsers ?? false,
+      });
+      res.json(seller);
+    } catch (error) {
+      console.error("Error creating seller:", error);
+      res.status(500).json({ message: "Failed to create seller" });
+    }
+  });
+
+  app.patch("/api/sellers/:id", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const seller = await storage.getSeller(req.params.id);
+      if (!seller) return res.status(404).json({ message: "Seller not found" });
+      const app = await storage.getApplication(seller.appId);
+      if (!app || app.ownerId !== userId) return res.status(404).json({ message: "Seller not found" });
+      const updated = await storage.updateSeller(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating seller:", error);
+      res.status(500).json({ message: "Failed to update seller" });
+    }
+  });
+
+  app.delete("/api/sellers/:id", isAuthenticatedCombined, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const seller = await storage.getSeller(req.params.id);
+      if (!seller) return res.status(404).json({ message: "Seller not found" });
+      const app = await storage.getApplication(seller.appId);
+      if (!app || app.ownerId !== userId) return res.status(404).json({ message: "Seller not found" });
+      await storage.deleteSeller(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting seller:", error);
+      res.status(500).json({ message: "Failed to delete seller" });
+    }
+  });
+
+  // Seller API endpoint
+  app.post("/api/seller", async (req, res) => {
+    try {
+      const { sellerkey, type } = req.body;
+      if (!sellerkey) return res.status(400).json({ success: false, message: "Seller key is required" });
+      const seller = await storage.getSellerByKey(sellerkey);
+      if (!seller || !seller.enabled) return res.status(403).json({ success: false, message: "Invalid or disabled seller key" });
+      const app = await storage.getApplication(seller.appId);
+      if (!app || !app.enabled) return res.status(403).json({ success: false, message: "Application not found or disabled" });
+
+      switch (type) {
+        case "add": {
+          if (!seller.canCreateLicenses) return res.status(403).json({ success: false, message: "No permission to create licenses" });
+          const { expiry, mask, level, amount, note } = req.body;
+          const count = Math.min(parseInt(amount) || 1, 100);
+          const lics = await storage.createLicenses({
+            appId: seller.appId,
+            duration: parseInt(expiry) || 1,
+            durationUnit: "day",
+            level: parseInt(level) || 1,
+            maxUses: 1,
+            enabled: true,
+            note: note || null,
+          }, count, mask);
+          return res.json({ success: true, message: "License(s) created", keys: lics.map(l => l.licenseKey) });
+        }
+        case "del": {
+          if (!seller.canDeleteLicenses) return res.status(403).json({ success: false, message: "No permission to delete licenses" });
+          const { key } = req.body;
+          if (!key) return res.status(400).json({ success: false, message: "License key required" });
+          const lic = await storage.getLicenseByKey(key, seller.appId);
+          if (!lic) return res.status(404).json({ success: false, message: "License not found" });
+          await storage.deleteLicense(lic.id);
+          return res.json({ success: true, message: "License deleted" });
+        }
+        case "adduser": {
+          if (!seller.canCreateUsers) return res.status(403).json({ success: false, message: "No permission to create users" });
+          const { user: username, pass, email: userEmail, expiry: userExpiry } = req.body;
+          if (!username) return res.status(400).json({ success: false, message: "Username is required" });
+          const existing = await storage.getAppUserByUsername(username, seller.appId);
+          if (existing) return res.status(409).json({ success: false, message: "Username already exists" });
+          const expiresAt = userExpiry ? new Date(Date.now() + parseInt(userExpiry) * 86400000) : null;
+          await storage.createAppUser({
+            appId: seller.appId,
+            username,
+            password: pass || null,
+            email: userEmail || null,
+            expiresAt,
+          });
+          return res.json({ success: true, message: "User created" });
+        }
+        case "deluser": {
+          if (!seller.canDeleteUsers) return res.status(403).json({ success: false, message: "No permission to delete users" });
+          const { user: delUsername } = req.body;
+          if (!delUsername) return res.status(400).json({ success: false, message: "Username is required" });
+          const delUser = await storage.getAppUserByUsername(delUsername, seller.appId);
+          if (!delUser) return res.status(404).json({ success: false, message: "User not found" });
+          await storage.deleteAppUser(delUser.id);
+          return res.json({ success: true, message: "User deleted" });
+        }
+        case "resetuser": {
+          if (!seller.canResetUserHwid) return res.status(403).json({ success: false, message: "No permission to reset HWID" });
+          const { user: resetUsername } = req.body;
+          if (!resetUsername) return res.status(400).json({ success: false, message: "Username is required" });
+          const resetUser = await storage.getAppUserByUsername(resetUsername, seller.appId);
+          if (!resetUser) return res.status(404).json({ success: false, message: "User not found" });
+          await storage.updateAppUser(resetUser.id, { hwid: null });
+          return res.json({ success: true, message: "HWID reset" });
+        }
+        case "banuser": {
+          if (!seller.canBanUsers) return res.status(403).json({ success: false, message: "No permission to ban users" });
+          const { user: banUsername } = req.body;
+          if (!banUsername) return res.status(400).json({ success: false, message: "Username is required" });
+          const banUser = await storage.getAppUserByUsername(banUsername, seller.appId);
+          if (!banUser) return res.status(404).json({ success: false, message: "User not found" });
+          await storage.updateAppUser(banUser.id, { banned: true });
+          return res.json({ success: true, message: "User banned" });
+        }
+        case "unbanuser": {
+          if (!seller.canBanUsers) return res.status(403).json({ success: false, message: "No permission to manage bans" });
+          const { user: unbanUsername } = req.body;
+          if (!unbanUsername) return res.status(400).json({ success: false, message: "Username is required" });
+          const unbanUser = await storage.getAppUserByUsername(unbanUsername, seller.appId);
+          if (!unbanUser) return res.status(404).json({ success: false, message: "User not found" });
+          await storage.updateAppUser(unbanUser.id, { banned: false });
+          return res.json({ success: true, message: "User unbanned" });
+        }
+        default:
+          return res.status(400).json({ success: false, message: "Invalid type" });
+      }
+    } catch (error) {
+      console.error("Seller API error:", error);
+      res.status(500).json({ success: false, message: "Internal error" });
+    }
+  });
+
   app.get("/api/statistics", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
