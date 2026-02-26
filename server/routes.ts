@@ -961,7 +961,7 @@ export async function registerRoutes(
   app.post("/api/app-users", isAuthenticatedCombined, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { appId, username, password } = req.body;
+      const { appId, username, password, email, level, expiresAt, hwid } = req.body;
       if (!appId || !username) {
         return res.status(400).json({ message: "Application and username are required" });
       }
@@ -973,6 +973,10 @@ export async function registerRoutes(
         appId,
         username: username.trim(),
         password: password || null,
+        email: email || null,
+        level: level !== undefined ? parseInt(level) : 1,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        hwid: hwid || null,
       });
       res.json(user);
     } catch (error) {

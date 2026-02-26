@@ -58,6 +58,7 @@ export const appUsers = pgTable(
       .references(() => applications.id, { onDelete: "cascade" }),
     username: text("username").notNull(),
     password: text("password"),
+    email: text("email"),
     hwid: text("hwid"),
     ip: text("ip"),
     level: integer("level").default(1),

@@ -88,6 +88,11 @@ export default function AppUsersPage() {
   const [selectedAppId, setSelectedAppId] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [subscription, setSubscription] = useState("1");
+  const [expiration, setExpiration] = useState("");
+  const [hwidAffected, setHwidAffected] = useState(false);
+  const [createHwid, setCreateHwid] = useState("");
 
   const [resetHwidOpen, setResetHwidOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -146,6 +151,10 @@ export default function AppUsersPage() {
         appId: selectedAppId,
         username,
         password: password || undefined,
+        email: email || undefined,
+        level: parseInt(subscription) || 1,
+        expiresAt: expiration || undefined,
+        hwid: hwidAffected ? (createHwid || undefined) : undefined,
       });
       return res.json();
     },
@@ -154,6 +163,11 @@ export default function AppUsersPage() {
       setCreateOpen(false);
       setUsername("");
       setPassword("");
+      setEmail("");
+      setSubscription("1");
+      setExpiration("");
+      setHwidAffected(false);
+      setCreateHwid("");
       toast({ title: "User created successfully" });
     },
     onError: (error: Error) => {
@@ -602,13 +616,13 @@ export default function AppUsersPage() {
       </Card>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add User</DialogTitle>
+            <DialogTitle>Create user</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Application</label>
+              <label className="mb-1.5 block text-sm font-medium">Application <span className="text-destructive">*</span></label>
               <Select value={selectedAppId} onValueChange={setSelectedAppId}>
                 <SelectTrigger data-testid="select-user-app">
                   <SelectValue placeholder="Select application" />
@@ -621,31 +635,85 @@ export default function AppUsersPage() {
               </Select>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Username</label>
+              <label className="mb-1.5 block text-sm font-medium">Username <span className="text-destructive">*</span></label>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="user123"
+                placeholder="Username"
                 data-testid="input-user-username"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Password (optional)</label>
+              <label className="mb-1.5 block text-sm font-medium">Password</label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Optional password"
+                placeholder="Password"
                 data-testid="input-user-password"
               />
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                data-testid="input-user-email"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Subscription <span className="text-destructive">*</span></label>
+              <Select value={subscription} onValueChange={setSubscription}>
+                <SelectTrigger data-testid="select-user-subscription">
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">default</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Expiration <span className="text-destructive">*</span></label>
+              <Input
+                type="datetime-local"
+                value={expiration}
+                onChange={(e) => setExpiration(e.target.value)}
+                data-testid="input-user-expiration"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Checkbox
+                checked={hwidAffected}
+                onCheckedChange={(checked) => setHwidAffected(checked === true)}
+                data-testid="checkbox-hwid-affected"
+              />
+              <label className="text-sm font-medium">HWID Affected</label>
+            </div>
+            {hwidAffected && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">HWID</label>
+                <Input
+                  value={createHwid}
+                  onChange={(e) => setCreateHwid(e.target.value)}
+                  placeholder="Hardware ID"
+                  data-testid="input-user-hwid"
+                />
+              </div>
+            )}
             <Button
               className="w-full"
               onClick={() => createUser.mutate()}
-              disabled={!selectedAppId || !username.trim() || createUser.isPending}
+              disabled={!selectedAppId || !username.trim() || !expiration || createUser.isPending}
               data-testid="button-submit-user"
             >
-              {createUser.isPending ? "Creating..." : "Add User"}
+              {createUser.isPending ? "Creating..." : "Create User"}
             </Button>
           </div>
         </DialogContent>
