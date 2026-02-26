@@ -1264,6 +1264,9 @@ export async function registerRoutes(
           await storage.updateAppUser(unbanUser.id, { banned: false });
           return res.json({ success: true, message: "User unbanned" });
         }
+        case "validate": {
+          return res.json({ success: true, message: "Seller key is valid", appName: app.name });
+        }
         default:
           return res.status(400).json({ success: false, message: "Invalid type" });
       }

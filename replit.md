@@ -71,7 +71,17 @@ The App Settings > Credentials tab includes code snippets for 13 languages showi
 - Sidebar with grouped navigation (Main + Insights sections)
 - Branded logo with purple icon badge
 
+## Telegram Bot
+- Built with grammy framework, integrated into Express server startup
+- File: `server/telegram-bot.ts`
+- Requires `TELEGRAM_BOT_TOKEN` secret to activate (gracefully skips if not set)
+- Uses the platform's own Seller API (`/api/seller`) for all operations
+- Commands: /start, /help, /addapp, /myapps, /selectapp, /removeapp, /create, /delkey, /adduser, /deluser, /resethwid, /ban, /unban, /status
+- Sellers add their seller key via the bot, then manage licenses/users via conversational commands
+- In-memory state management for multi-step conversations with 5-minute timeout
+
 ## Recent Changes
+- 2026-02-26: Added Telegram bot (grammy) for managing licenses/users via seller API
 - 2026-02-19: Added local username/password auth with login/register pages, license key required for registration
 - 2026-02-19: Design overhaul - purple accent theme, animations, improved sidebar, redesigned landing page
 - 2026-02-19: Added Statistics page with real-time analytics (per-app breakdowns, license/user/token stats)
