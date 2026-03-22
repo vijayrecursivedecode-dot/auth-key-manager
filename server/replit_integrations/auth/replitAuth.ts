@@ -18,23 +18,40 @@ const getOidcConfig = memoize(
   { maxAge: 3600 * 1000 }
 );
 
-export function getSession() {
+export async function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+
+  if (process.env.DATABASE_URL) {
+    const pgStore = connectPg(session);
+    const sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
+    return session({
+      secret: process.env.SESSION_SECRET || "local-dev-secret",
+      store: sessionStore,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: sessionTtl,
+      },
+    });
+  }
+
+  // No DATABASE_URL — use in-memory session store (local dev)
+  const MemoryStore = (await import("memorystore")).default(session);
   return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
+    secret: process.env.SESSION_SECRET || "local-dev-secret",
+    store: new MemoryStore({ checkPeriod: sessionTtl }),
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: false,
       maxAge: sessionTtl,
     },
   });
@@ -62,9 +79,20 @@ async function upsertUser(claims: any) {
 
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
-  app.use(getSession());
+  app.use(await getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Skip Replit OIDC setup when not running on Replit
+  if (!process.env.REPL_ID) {
+    console.log("[auth] REPL_ID not set — skipping Replit OIDC setup");
+    app.get("/api/login", (_req, res) => res.redirect("/login"));
+    app.get("/api/callback", (_req, res) => res.redirect("/"));
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => res.redirect("/"));
+    });
+    return;
+  }
 
   const config = await getOidcConfig();
 
